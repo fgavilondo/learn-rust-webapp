@@ -2,7 +2,7 @@
 
 Sample (and simple) Rust web app. Not a SPA.
 
-# Technologies used in this demo
+# Technologies used
 
 ## Web framework
 
@@ -47,13 +47,12 @@ Future is a suspended computation that is waiting to be executed. To actually ex
 
 Blocked Futures will yield control of the thread, allowing other Futures to run.
 
-https://rust-lang.github.io/async-book/
+See https://rust-lang.github.io/async-book/
 
 
 # Resources
 
-https://www.arewewebyet.org/
-https://actix.rs/docs/installation/
-https://github.com/actix/examples
-https://qiita.com/kimagure/items/e24d7d6514a6a0dd2b48
-
+* https://www.arewewebyet.org/
+* https://actix.rs/docs/installation/
+* https://github.com/actix/examples
+* https://qiita.com/kimagure/items/e24d7d6514a6a0dd2b48
