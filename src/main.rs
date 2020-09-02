@@ -16,11 +16,11 @@ struct AppState {
 
 // A request handler is an async function that accepts zero or more parameters that can be extracted from a request
 // (ie, impl FromRequest) and returns a type that can be converted into an HttpResponse (ie, impl Responder)
-async fn handler_homepage() -> impl Responder {
+async fn get_homepage() -> impl Responder {
     HttpResponse::Ok().body("This is the home page")
 }
 
-async fn handler_teacher(data: web::Data<AppState>) -> impl Responder {
+async fn get_teacher(data: web::Data<AppState>) -> impl Responder {
     let teacher_name: MutexGuard<String> = data.teacher_name.lock().unwrap(); // get MutexGuard
     // to modify
     // let mut teacher_name = data.teacher_name.lock().unwrap(); // get MutexGuard
@@ -31,7 +31,7 @@ async fn handler_teacher(data: web::Data<AppState>) -> impl Responder {
 // Alternatively, you can define routes using macro attributes which allow you to specify the routes above
 // your functions like so:
 #[get("/students")]
-async fn handler_students() -> impl Responder {
+async fn get_students() -> impl Responder {
     HttpResponse::Ok().body(format!("The students are: {}", "Claire David Louise"))
 }
 
@@ -48,9 +48,9 @@ async fn main() -> std::io::Result<()> {
             // register app_state
             .app_data(app_state.clone())
             // register request handlers on a path with a method
-            .route("/", web::get().to(handler_homepage))
-            .route("/teacher", web::get().to(handler_teacher))
-            .service(handler_students)
+            .route("/", web::get().to(get_homepage))
+            .route("/teacher", web::get().to(get_teacher))
+            .service(get_students)
     })
         .bind(format!("{}:{}", HOST, PORT))?
         .run()
