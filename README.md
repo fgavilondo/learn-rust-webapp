@@ -6,15 +6,20 @@ Sample (and simple) Rust web app. Not a SPA.
 
 ## Web framework
 
-  actix-web, part of https://actix.rs/, which also includes Actor Model for concurrency
+actix-web, part of https://actix.rs/
 
-  actix-web provides various primitives to build web servers and applications with Rust. It provides routing, middlewares, pre-processing of requests, post-processing of responses, etc.
+A high level web framework built on top of the actix actor framework and the Tokio async IO system. 
+
+actix-web provides various primitives to build web servers and applications with Rust.
+It provides routing, middlewares, pre-processing of requests, post-processing of responses, etc.
+ 
+High performance/ concurrency.
 
 ## HTTP server
 
-  actix-rt, implemented atop of http and h2 crates
+actix-rt, implemented atop of the http and h2 crates.
 
-Other popular choices hyper, tiny_http
+Other popular choices are hyper and tiny_http
 
 ## DB driver
 
@@ -54,6 +59,8 @@ See https://rust-lang.github.io/async-book/
 * Using application guards to filter requests, e.g. based on HTTP headers
 * Modular App and Scope configuration
 * SSL
+* Logging
+* JSON serialization
 
 
 # Resources
