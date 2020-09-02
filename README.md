@@ -24,7 +24,6 @@ Other popular choices hyper, tiny_http
 
 ?? 
 
-
 # App object
 
 actix_web::App
@@ -33,7 +32,7 @@ Used for registering routes for resources and middlewares.
 
 Application state is shared with all routes and resources within the same scope. State can be accessed with the web::Data<T> extractor where T is type of state.
 
-Must be synchronised for multi-threaded access.
+Access to state must be synchronised for multi-threaded modification using Mutex, RwLock, Atomic.
 
 # Async resource handlers
 
@@ -48,6 +47,13 @@ Future is a suspended computation that is waiting to be executed. To actually ex
 Blocked Futures will yield control of the thread, allowing other Futures to run.
 
 See https://rust-lang.github.io/async-book/
+
+# Topics not covered
+
+* Using scopes to compose applications (http://localhost:8088/scope1/, http://localhost:8088/scope2/ etc.)
+* Using application guards to filter requests, e.g. based on HTTP headers
+* Modular App and Scope configuration
+* SSL
 
 
 # Resources

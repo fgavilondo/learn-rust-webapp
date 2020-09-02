@@ -43,13 +43,14 @@ async fn main() -> std::io::Result<()> {
     });
 
     HttpServer::new(move || {
-        // move app_state into the closure
+        // Move closure transfers ownership of app_state value away from main thread
         App::new()
             // register app_state
             .app_data(app_state.clone())
             // register request handlers on a path with a method
             .route("/", web::get().to(get_homepage))
             .route("/teacher", web::get().to(get_teacher))
+            // simpler registration when using macros
             .service(get_students)
     })
         .bind(format!("{}:{}", HOST, PORT))?
