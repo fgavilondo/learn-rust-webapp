@@ -5,11 +5,11 @@ use actix_web::{App, get, HttpResponse, HttpServer, Responder, web};
 const HOST: &str = "127.0.0.1";
 const PORT: u32 = 8088;
 
-// Application state, will be shared by multiple (requests processing) threads.
+// Application state - will be shared by multiple (requests processing) threads.
 // Application state can be accessed with the web::Data<T> extractor where T is type of state.
 // Internally, web::Data uses Arc<T>, i.e. 'Atomically Reference Counted'.
 // Shared references in Rust disallow mutation by default, and Arc is no exception.
-// If you need to mutate through an Arc, use Mutex, RwLock, or one of the Atomic types.
+// To mutate through an Arc we need to use Mutex, RwLock, or one of the Atomic types.
 struct AppState {
     teacher_name: Mutex<String>
 }
