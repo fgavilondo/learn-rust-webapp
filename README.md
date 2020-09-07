@@ -41,8 +41,8 @@ Access to state must be synchronised for multi-threaded modification using Mutex
 
 # Async resource handlers
 
-Async-await is a way to write functions that can "pause", return control to the runtime, and then pick up from where they left off. Typically those pauses are to wait for I/O, but there can be any number of uses.
-
+Async-await is a way to write functions that can "pause", return control to the runtime, and then pick up from where they left off.
+Typically, those pauses are to wait for I/O, but there can be any number of uses.
 This model is also known as "coroutines", or interleaved processing.
 
 Implementation: async functions return a Future instead of blocking the current thread.
