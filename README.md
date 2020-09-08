@@ -53,6 +53,10 @@ Blocked Futures will yield control of the thread, allowing other Futures to run.
 
 See https://rust-lang.github.io/async-book/
 
+# JSON serialization
+
+Implemented using the serde and serde_json crates.
+
 # Topics not covered
 
 * Using scopes to compose applications (http://localhost:8088/scope1/, http://localhost:8088/scope2/ etc.)
@@ -60,7 +64,6 @@ See https://rust-lang.github.io/async-book/
 * Modular App and Scope configuration
 * SSL
 * Logging
-* JSON serialization
 
 
 # Resources
