@@ -79,7 +79,7 @@ async fn main() -> std::io::Result<()> {
             // register request handlers on a path with a method
             .route("/", web::get().to(get_homepage_html))
             .route("/teacher", web::get().to(get_teacher_html))
-            .route("/classroom", web::get().to(get_classroom_json()))
+            .route("/classroom", web::get().to(get_classroom_json))
             // simpler registration when using macros
             .service(get_students_html)
     })
