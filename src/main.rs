@@ -1,6 +1,6 @@
 use std::sync::{Mutex, MutexGuard};
 
-use actix_web::{App, Error, get, HttpRequest, HttpResponse, HttpServer, Responder, web};
+use actix_web::{App, Error, get, HttpRequest, HttpResponse, HttpServer, put, Responder, web};
 use futures::future::{ready, Ready};
 use serde::Serialize;
 
@@ -15,33 +15,24 @@ async fn get_homepage_html() -> impl Responder {
     HttpResponse::Ok().body("This is the home page")
 }
 
-// Alternatively, you can define routes using macro attributes which allow you to specify the routes above
-// your functions like so:
-#[get("/students")]
 async fn get_students_html() -> impl Responder {
-    HttpResponse::Ok().body(format!("The students are: {}", "Claire David Louise"))
+    HttpResponse::Ok().body(format!("The students are: Claire, David, Louise"))
 }
 
-// Application state - will be shared by multiple (requests processing) threads.
-// Application state can be accessed with the web::Data<T> extractor where T is type of state.
-// Internally, web::Data uses Arc<T>, i.e. 'Atomically Reference Counted'.
-// Shared references in Rust disallow mutation by default, and Arc is no exception.
-// To mutate through an Arc we need to use Mutex, RwLock, or one of the Atomic types.
-struct AppState {
-    teacher_name: Mutex<String>
+// Path provides information that can be extracted from the Request’s path.
+// You can deserialize any variable segment from the path, e.g. by extracting the segments into a tuple.
+async fn get_student_html(path: web::Path<(u32, )>) -> impl Responder {
+    // extract path info from /students/{id}
+    let student_id: u32 = path.0;
+    match student_id {
+        1 => HttpResponse::Ok().body("Claire Lisp"),
+        2 => HttpResponse::Ok().body("David Haskell"),
+        3 => HttpResponse::Ok().body("Louise Pascal"),
+        _ => HttpResponse::NotFound().body("Unknown student ID"),
+    }
 }
 
-async fn get_teacher_html(data: web::Data<AppState>) -> impl Responder {
-    let teacher_name: MutexGuard<String> = data.teacher_name.lock().unwrap(); // get MutexGuard
-    HttpResponse::Ok().body(format!("The teacher is: {}", teacher_name))
-}
-
-async fn put_teacher(data: web::Data<AppState>) -> impl Responder {
-    let mut teacher_name: MutexGuard<String> = data.teacher_name.lock().unwrap();
-    *teacher_name = String::from("Someone else");
-    HttpResponse::Ok().body(format!("The new teacher is: {}", teacher_name))
-}
-
+// JSON serialization
 #[derive(Serialize)]
 struct Classroom {
     name: &'static str,
@@ -63,6 +54,29 @@ async fn get_classroom_json() -> impl Responder {
     Classroom { name: "5VR", capacity: 20 }
 }
 
+// Application state - will be shared by multiple (requests processing) threads.
+// Application state can be accessed with the web::Data<T> extractor where T is type of state.
+// Internally, web::Data uses Arc<T>, i.e. 'Atomically Reference Counted'.
+// Shared references in Rust disallow mutation by default, and Arc is no exception.
+// To mutate through an Arc we need to use Mutex, RwLock, or one of the Atomic types.
+struct AppState {
+    teacher_name: Mutex<String>
+}
+
+// Alternatively, you can define routes using macro attributes which allow you to specify the routes above
+// your functions like so:
+#[get("/teacher")]
+async fn get_teacher_html(data: web::Data<AppState>) -> impl Responder {
+    let teacher_name: MutexGuard<String> = data.teacher_name.lock().unwrap(); // get MutexGuard
+    HttpResponse::Ok().body(format!("The teacher is: {}", teacher_name))
+}
+
+#[put("/teacher/{name}")]
+async fn put_teacher(path: web::Path<(String, )>, data: web::Data<AppState>) -> impl Responder {
+    let mut teacher_name: MutexGuard<String> = data.teacher_name.lock().unwrap();
+    // *teacher_name = path.0;
+    HttpResponse::Ok().body(format!("The new teacher is: {}", teacher_name))
+}
 
 #[actix_rt::main]
 async fn main() -> std::io::Result<()> {
@@ -78,10 +92,12 @@ async fn main() -> std::io::Result<()> {
             .app_data(app_state.clone())
             // register request handlers on a path with a method
             .route("/", web::get().to(get_homepage_html))
-            .route("/teacher", web::get().to(get_teacher_html))
+            .route("/students", web::get().to(get_students_html))
+            .route("/students/{id}", web::get().to(get_student_html))
             .route("/classroom", web::get().to(get_classroom_json))
             // simpler registration when using macros
-            .service(get_students_html)
+            .service(get_teacher_html)
+            .service(put_teacher)
     })
         // to bind ssl socket, bind_openssl() or bind_rustls() should be used.
         .bind(format!("{}:{}", HOST, PORT))?

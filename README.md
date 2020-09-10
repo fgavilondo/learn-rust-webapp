@@ -2,9 +2,20 @@
 
 Sample (and simple) Rust web app. Not a SPA.
 
+# Topics covered
+
+* actix-rt server set-up
+* actix-web app set-up
+* asynchronous request handlers
+* GET and PUT requests
+* path extractors
+* JSON serialization using the serde and serde_json crates
+* accessing global (shared, mutable) application state
+* ORM?
+
 # Technologies used
 
-## Web framework
+## Web framework: actix-web
 
 actix-web, part of https://actix.rs/
 
@@ -35,7 +46,8 @@ actix_web::App
 
 Used for registering routes for resources and middlewares.
 
-Application state is shared with all routes and resources within the same scope. State can be accessed with the web::Data<T> extractor where T is type of state.
+Application state is shared with all routes and resources within the same scope.
+State can be accessed with the web::Data<T> extractor where T is type of state.
 
 Access to state must be synchronised for multi-threaded modification using Mutex, RwLock, Atomic.
 
@@ -53,10 +65,6 @@ Blocked Futures will yield control of the thread, allowing other Futures to run.
 
 See https://rust-lang.github.io/async-book/
 
-# JSON serialization
-
-Implemented using the serde and serde_json crates.
-
 # Topics not covered
 
 * Using scopes to compose applications (http://localhost:8088/scope1/, http://localhost:8088/scope2/ etc.)
@@ -64,7 +72,6 @@ Implemented using the serde and serde_json crates.
 * Modular App and Scope configuration
 * SSL
 * Logging
-
 
 # Resources
 
