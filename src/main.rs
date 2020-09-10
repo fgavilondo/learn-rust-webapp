@@ -32,7 +32,9 @@ async fn get_student_html(path: web::Path<(u32, )>) -> impl Responder {
     }
 }
 
-// JSON serialization
+// JSON serialization.
+// Serde is able to serialize and deserialize common Rust data types out-of-the-box.
+// It provides a derive macro to generate serialization implementations for structs in your own program.
 #[derive(Serialize)]
 struct Classroom {
     name: &'static str,
@@ -45,8 +47,8 @@ impl Responder for Classroom {
     type Future = Ready<Result<HttpResponse, Error>>;
 
     fn respond_to(self, _req: &HttpRequest) -> Self::Future {
-        let body = serde_json::to_string(&self).unwrap();
-        ready(Ok(HttpResponse::Ok().content_type("application/json").body(body)))
+        let json_body = serde_json::to_string(&self).unwrap();
+        ready(Ok(HttpResponse::Ok().content_type("application/json").body(json_body)))
     }
 }
 

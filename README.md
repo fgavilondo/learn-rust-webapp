@@ -4,13 +4,13 @@ Sample (and simple) Rust web app. Not a SPA.
 
 # Topics covered
 
-* actix-rt server set-up
-* actix-web app set-up
-* asynchronous request handlers
+* actix-rt Server set-up
+* actix-web App set-up
+* Asynchronous request handling
 * GET and PUT requests
-* path extractors
-* JSON serialization using the serde and serde_json crates
-* accessing global (shared, mutable) application state
+* Type-safe request information access (Path etc.)
+* JSON serialization/deserialization using the serde and serde_json crates
+* Accessing shared (mutable) application state
 * ORM?
 
 # Technologies used
