@@ -1,8 +1,10 @@
 use std::sync::{Mutex, MutexGuard};
 use std::time;
 
+use actix_files as fs;
 use actix_session::{CookieSession, Session};
-use actix_web::{App, Error, get, HttpRequest, HttpResponse, HttpServer, put, Responder, web};
+use actix_web::{App, Error, get, HttpRequest, HttpResponse, HttpServer, put, Responder, Result, web};
+use actix_web::http::StatusCode;
 use actix_web::middleware::Logger;
 use chrono::DateTime;
 use chrono::offset::Utc;
@@ -13,12 +15,31 @@ use serde::{Deserialize, Serialize};
 const HOST: &str = "127.0.0.1";
 const PORT: u32 = 8088;
 
+
 // A request handler is a function that accepts zero or more parameters that can be extracted from a request
 // (ie, impl FromRequest) and returns a type that can be converted into an HttpResponse (ie, impl Responder)
 // Any long, non-cpu-bound operation (e.g. I/O, database operations, etc.) should be expressed as futures or
 // asynchronous functions. Async handlers get executed concurrently by worker threads and thus don’t block execution.
-async fn get_homepage_html() -> impl Responder {
-    HttpResponse::Ok().body("This is the home page")
+async fn get_welcome_page() -> Result<HttpResponse> {
+    Ok(HttpResponse::build(StatusCode::OK)
+        .content_type("text/html; charset=utf-8")
+        .body(include_str!("../static/welcome.html")))
+}
+
+/// 404 handler
+async fn get_404_page(req: HttpRequest) -> Result<fs::NamedFile> {
+    // debugging
+    println!("{:?}", req);
+
+    Ok(fs::NamedFile::open("static/404.html")?.set_status_code(StatusCode::NOT_FOUND))
+}
+
+/// favicon handler
+/// You can also define routes using macro attributes which allow you to specify the routes above
+/// your functions like so:
+#[get("/favicon")]
+async fn get_favicon_file() -> Result<fs::NamedFile> {
+    Ok(fs::NamedFile::open("static/favicon.ico")?)
 }
 
 async fn get_students_html() -> impl Responder {
@@ -79,8 +100,6 @@ struct AppState {
     teacher_name: Mutex<String>
 }
 
-// You can also define routes using macro attributes which allow you to specify the routes above
-// your functions like so:
 #[get("/teacher")]
 async fn get_teacher_html(data: web::Data<AppState>) -> impl Responder {
     let teacher_name: MutexGuard<String> = data.teacher_name.lock().unwrap(); // get MutexGuard
@@ -140,7 +159,7 @@ async fn main() -> std::io::Result<()> {
             // register app_state
             .app_data(app_state.clone())
             // register request handlers on a path with a method
-            .route("/", web::get().to(get_homepage_html))
+            .route("/", web::get().to(get_welcome_page))
             .route("/students", web::get().to(get_students_html))
             .route("/students/{id}", web::get().to(get_student_html))
             .route("/classroom", web::get().to(get_classroom_json))
@@ -148,6 +167,12 @@ async fn main() -> std::io::Result<()> {
             .service(get_teacher_html)
             .service(put_teacher_in_req_path)
             .service(put_teacher_in_req_body)
+            .service(get_favicon_file)
+            // default
+            .default_service(
+                // 404 for GET request
+                web::resource("").route(web::get().to(get_404_page)),
+            )
     })
         // to bind ssl socket, bind_openssl() or bind_rustls() should be used.
         .bind(format!("{}:{}", HOST, PORT))?
