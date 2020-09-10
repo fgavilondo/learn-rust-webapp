@@ -63,7 +63,7 @@ struct AppState {
     teacher_name: Mutex<String>
 }
 
-// Alternatively, you can define routes using macro attributes which allow you to specify the routes above
+// You can also define routes using macro attributes which allow you to specify the routes above
 // your functions like so:
 #[get("/teacher")]
 async fn get_teacher_html(data: web::Data<AppState>) -> impl Responder {
@@ -72,10 +72,13 @@ async fn get_teacher_html(data: web::Data<AppState>) -> impl Responder {
 }
 
 #[put("/teacher/{name}")]
-async fn put_teacher(path: web::Path<(String, )>, data: web::Data<AppState>) -> impl Responder {
+async fn put_teacher(req: HttpRequest, data: web::Data<AppState>) -> impl Responder {
+    // Instead of using Path, it is also possible to get or query the request for path parameters by name:
+    let new_name: String =
+        req.match_info().get("name").unwrap().parse().unwrap();
     let mut teacher_name: MutexGuard<String> = data.teacher_name.lock().unwrap();
-    // *teacher_name = path.0;
-    HttpResponse::Ok().body(format!("The new teacher is: {}", teacher_name))
+    *teacher_name = new_name;
+    HttpResponse::Ok().body(format!("Teacher changed to: {}", teacher_name))
 }
 
 #[actix_rt::main]
