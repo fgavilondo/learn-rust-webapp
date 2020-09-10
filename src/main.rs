@@ -1,6 +1,12 @@
 use std::sync::{Mutex, MutexGuard};
+use std::time;
 
+use actix_session::{CookieSession, Session};
 use actix_web::{App, Error, get, HttpRequest, HttpResponse, HttpServer, put, Responder, web};
+use actix_web::middleware::Logger;
+use chrono::DateTime;
+use chrono::offset::Utc;
+use env_logger;
 use futures::future::{ready, Ready};
 use serde::{Deserialize, Serialize};
 
@@ -82,25 +88,35 @@ async fn get_teacher_html(data: web::Data<AppState>) -> impl Responder {
 }
 
 #[put("/teacher/{name}")]
-async fn put_teacher_in_req_path(req: HttpRequest, data: web::Data<AppState>) -> impl Responder {
-    // Instead of using Path, it is also possible to get or query the request for path parameters by name:
-    let new_name: String =
-        req.match_info().get("name").unwrap().parse().unwrap();
+async fn put_teacher_in_req_path(session: Session, req: HttpRequest, data: web::Data<AppState>) -> impl Responder {
+    let last_update_st = session.get::<time::SystemTime>("last_teacher_update").unwrap().unwrap();
+    let last_update_dt: DateTime<Utc> = last_update_st.into();
+    session.set("last_teacher_update", time::SystemTime::now()).unwrap();
+
     let mut teacher_name: MutexGuard<String> = data.teacher_name.lock().unwrap();
-    *teacher_name = new_name;
-    HttpResponse::Ok().body(format!("Teacher changed to: {}", teacher_name))
+    // Instead of using Path, it is also possible to get or query the request for path parameters by name:
+    *teacher_name = req.match_info().get("name").unwrap().parse().unwrap();
+    HttpResponse::Ok().body(
+        format!("Last updated: {} UTC. Teacher changed to: {}", last_update_dt.format("%d/%m/%Y %T"), teacher_name))
 }
 
+// JSON deserialization using serde
 #[derive(Deserialize)]
 struct TeacherUpdate {
     name: String,
 }
 
 #[put("/teacher")]
-async fn put_teacher_in_req_body(info: web::Json<TeacherUpdate>, data: web::Data<AppState>) -> impl Responder {
+async fn put_teacher_in_req_body(session: Session, info: web::Json<TeacherUpdate>, data: web::Data<AppState>)
+                                 -> impl Responder {
+    let last_update_st = session.get::<time::SystemTime>("last_teacher_update").unwrap().unwrap();
+    let last_update_dt: DateTime<Utc> = last_update_st.into();
+    session.set("last_teacher_update", time::SystemTime::now()).unwrap();
+
     let mut teacher_name: MutexGuard<String> = data.teacher_name.lock().unwrap();
     *teacher_name = info.name.clone();
-    HttpResponse::Ok().body(format!("Teacher changed to: {}", teacher_name))
+    HttpResponse::Ok().body(
+        format!("Last updated: {} UTC. Teacher changed to: {}", last_update_dt.format("%d/%m/%Y %T"), teacher_name))
 }
 
 #[actix_rt::main]
@@ -111,9 +127,16 @@ async fn main() -> std::io::Result<()> {
         teacher_name: Mutex::new(String::from("Mat")),
     });
 
+    env_logger::from_env(env_logger::Env::default().default_filter_or("info")).init();
+
     HttpServer::new(move || {
         // "move closure" transfers ownership of app_state value away from main thread
         App::new()
+            // register logging middleware, it uses the standard log crate to log information.
+            .wrap(Logger::default())
+            .wrap(Logger::new("%a %{User-Agent}i"))
+            // create cookie based session middleware
+            .wrap(CookieSession::signed(&[0; 32]).secure(false))
             // register app_state
             .app_data(app_state.clone())
             // register request handlers on a path with a method

@@ -9,21 +9,25 @@ git clone https://github.com/fgavilondo/learn-rust-webapp.git
 * actix-rt Server set-up
 * actix-web App set-up
 * Asynchronous request handling
+* Basic URL dispatch
 * GET and PUT requests
-* Type-safe request information access (Path, Request, Json etc.)
+* Type-safe request information access (actix_web::HttpRequest, web::Path, web::Json)
 * JSON serialization/deserialization using the serde and serde_json crates
-* Accessing shared (mutable) application state
+* Accessing global (mutable) application state
+* Logging middleware
+* Cookie based session middleware
 * Templates?
 * ORM?
 
 # Topics not covered
 
 * SSL
-* Authorization/user sessions
-* Logging
-* Using scopes to compose applications (http://localhost:8088/scope1/, http://localhost:8088/scope2/ etc.)
+* Authorization
+* POST and forms
+* Serving static files
+* Implementing custom middlewares
 * Using application guards to filter requests, e.g. based on HTTP headers
-* Modular App configuration
+* Testing
 
 # Web framework: actix-web
 
