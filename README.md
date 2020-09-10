@@ -19,10 +19,11 @@ git clone https://github.com/fgavilondo/learn-rust-webapp.git
 # Topics not covered
 
 * SSL
+* Authorization/user sessions
 * Logging
 * Using scopes to compose applications (http://localhost:8088/scope1/, http://localhost:8088/scope2/ etc.)
 * Using application guards to filter requests, e.g. based on HTTP headers
-* Modular App and Scope configuration
+* Modular App configuration
 
 # Web framework: actix-web
 

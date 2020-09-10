@@ -2,7 +2,7 @@ use std::sync::{Mutex, MutexGuard};
 
 use actix_web::{App, Error, get, HttpRequest, HttpResponse, HttpServer, put, Responder, web};
 use futures::future::{ready, Ready};
-use serde::{Deserialize, Serialize, Serializer};
+use serde::{Deserialize, Serialize};
 
 const HOST: &str = "127.0.0.1";
 const PORT: u32 = 8088;
@@ -99,7 +99,7 @@ struct TeacherUpdate {
 #[put("/teacher")]
 async fn put_teacher_in_req_body(info: web::Json<TeacherUpdate>, data: web::Data<AppState>) -> impl Responder {
     let mut teacher_name: MutexGuard<String> = data.teacher_name.lock().unwrap();
-    *teacher_name = info.name.copy();
+    *teacher_name = info.name.clone();
     HttpResponse::Ok().body(format!("Teacher changed to: {}", teacher_name))
 }
 
