@@ -2,7 +2,7 @@ use std::sync::{Mutex, MutexGuard};
 
 use actix_web::{App, Error, get, HttpRequest, HttpResponse, HttpServer, put, Responder, web};
 use futures::future::{ready, Ready};
-use serde::Serialize;
+use serde::{Deserialize, Serialize, Serializer};
 
 const HOST: &str = "127.0.0.1";
 const PORT: u32 = 8088;
@@ -32,14 +32,22 @@ async fn get_student_html(path: web::Path<(u32, )>) -> impl Responder {
     }
 }
 
-// JSON serialization.
+// JSON serialization using serde.
 // Serde is able to serialize and deserialize common Rust data types out-of-the-box.
-// It provides a derive macro to generate serialization implementations for structs in your own program.
+// It provides a derive macro to generate serialization implementation for structs in your own program.
 #[derive(Serialize)]
 struct Classroom {
     name: &'static str,
     capacity: u32,
 }
+
+// Alternatively, you could provide your own custom implementation of the Serialize trait
+// impl Serialize for Classroom {
+//     fn serialize<S>(&self, serializer: S) -> Result<<S as Serializer>::Ok, <S as Serializer>::Error> where
+//         S: Serializer {
+//         unimplemented!()
+//     }
+// }
 
 // Types that implement Responder can be used as the return type of a request handler
 impl Responder for Classroom {
@@ -74,7 +82,7 @@ async fn get_teacher_html(data: web::Data<AppState>) -> impl Responder {
 }
 
 #[put("/teacher/{name}")]
-async fn put_teacher(req: HttpRequest, data: web::Data<AppState>) -> impl Responder {
+async fn put_teacher_in_req_path(req: HttpRequest, data: web::Data<AppState>) -> impl Responder {
     // Instead of using Path, it is also possible to get or query the request for path parameters by name:
     let new_name: String =
         req.match_info().get("name").unwrap().parse().unwrap();
@@ -83,9 +91,22 @@ async fn put_teacher(req: HttpRequest, data: web::Data<AppState>) -> impl Respon
     HttpResponse::Ok().body(format!("Teacher changed to: {}", teacher_name))
 }
 
+#[derive(Deserialize)]
+struct TeacherUpdate {
+    name: String,
+}
+
+#[put("/teacher")]
+async fn put_teacher_in_req_body(info: web::Json<TeacherUpdate>, data: web::Data<AppState>) -> impl Responder {
+    let mut teacher_name: MutexGuard<String> = data.teacher_name.lock().unwrap();
+    *teacher_name = info.name.copy();
+    HttpResponse::Ok().body(format!("Teacher changed to: {}", teacher_name))
+}
+
 #[actix_rt::main]
 async fn main() -> std::io::Result<()> {
-    // initialize application state, shared with all routes and resources within the same scope.
+    // Initialize application state, shared with all routes and resources within the same scope.
+    // Do not use in a clustered set-up!
     let app_state = web::Data::new(AppState {
         teacher_name: Mutex::new(String::from("Mat")),
     });
@@ -102,7 +123,8 @@ async fn main() -> std::io::Result<()> {
             .route("/classroom", web::get().to(get_classroom_json))
             // simpler registration when using macros
             .service(get_teacher_html)
-            .service(put_teacher)
+            .service(put_teacher_in_req_path)
+            .service(put_teacher_in_req_body)
     })
         // to bind ssl socket, bind_openssl() or bind_rustls() should be used.
         .bind(format!("{}:{}", HOST, PORT))?

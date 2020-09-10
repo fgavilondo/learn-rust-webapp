@@ -1,6 +1,8 @@
 # learn-rust-webapp
 
-Sample (and simple) Rust web app. Not a SPA.
+Sample Rust actix-web webapp. Not a SPA.
+
+git clone https://github.com/fgavilondo/learn-rust-webapp.git
 
 # Topics covered
 
@@ -8,37 +10,35 @@ Sample (and simple) Rust web app. Not a SPA.
 * actix-web App set-up
 * Asynchronous request handling
 * GET and PUT requests
-* Type-safe request information access (Path etc.)
+* Type-safe request information access (Path, Request, Json etc.)
 * JSON serialization/deserialization using the serde and serde_json crates
 * Accessing shared (mutable) application state
+* Templates?
 * ORM?
 
-# Technologies used
+# Topics not covered
 
-## Web framework: actix-web
+* SSL
+* Logging
+* Using scopes to compose applications (http://localhost:8088/scope1/, http://localhost:8088/scope2/ etc.)
+* Using application guards to filter requests, e.g. based on HTTP headers
+* Modular App and Scope configuration
+
+# Web framework: actix-web
 
 actix-web, part of https://actix.rs/
 
-A high level web framework built on top of the actix actor framework and the Tokio async IO system. 
+A high level web framework built atop of the actix actor framework and the Tokio async IO system. 
 
-actix-web provides various primitives to build web servers and applications with Rust.
 It provides routing, middlewares, pre-processing of requests, post-processing of responses, etc.
  
-High performance/ concurrency.
+High performance/concurrency.
 
-## HTTP server
+# HTTP server
 
 actix-rt, implemented atop of the http and h2 crates.
 
 Other popular choices are hyper and tiny_http
-
-## DB driver
-
-??
-
-## ORM
-
-?? 
 
 # App object
 
@@ -65,13 +65,13 @@ Blocked Futures will yield control of the thread, allowing other Futures to run.
 
 See https://rust-lang.github.io/async-book/
 
-# Topics not covered
+# DB driver
 
-* Using scopes to compose applications (http://localhost:8088/scope1/, http://localhost:8088/scope2/ etc.)
-* Using application guards to filter requests, e.g. based on HTTP headers
-* Modular App and Scope configuration
-* SSL
-* Logging
+??
+
+# ORM
+
+?? 
 
 # Resources
 
