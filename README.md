@@ -152,7 +152,7 @@ Use the provided 'derive' macro to make your structs deserializable:
         // ...
     }
 
-... and the web::Json extractor to deserialize them from the HTTP request.
+... and use the web::Json extractor to deserialize them from the HTTP request.
 
 # In-memory application state
 
@@ -162,8 +162,16 @@ Application state is shared by multiple (requests processing) threads. Internall
 
 Shared references in Rust disallow mutation by default, and Arc is no exception. To mutate through an Arc we need to use Mutex, RwLock, or one of the Atomic types.
 
-# Session middleware
+# Session state
 
+The actix-session middleware can be used with different backend types to store session data in different backends.
+
+By default, only cookie session backend is implemented. Other backend implementations can be added.
+
+A cookie may have a security policy of signed or private. Each has a respective CookieSession constructor.
+A signed cookie may be viewed but not modified by the client. A private cookie may neither be viewed nor modified by the client.
+
+To access session data the actix_session::Session extractor must be used. 
 
 # DB driver
 

@@ -87,7 +87,7 @@ async fn get_teacher_html(app_state: web::Data<AppState>) -> impl Responder {
 
 /// Handler to update the teacher name stored in global application state via PUT request.
 /// Teacher name specified via request path.
-/// Time of update saved to session state.
+/// Time of update saved to session state (cookie).
 #[put("/teacher/{name}")]
 async fn put_teacher_via_req_path(session: Session, req: HttpRequest, app_state: web::Data<AppState>) -> impl Responder {
     let last_update_st = session.get::<time::SystemTime>("last_teacher_update").unwrap().unwrap();
@@ -109,7 +109,7 @@ struct TeacherUpdate {
 
 /// Handler to update the teacher name stored in global application state via PUT request.
 /// Teacher name specified via JSON in request body.
-/// Time of update saved to session state.
+/// Time of update saved to session state (cookie).
 #[put("/teacher")]
 async fn put_teacher_in_req_body(session: Session, json_body: web::Json<TeacherUpdate>, app_state: web::Data<AppState>)
                                  -> impl Responder {
@@ -145,7 +145,7 @@ async fn main() -> std::io::Result<()> {
             // register logging middleware, it uses the standard log crate to log information.
             .wrap(Logger::default())
             .wrap(Logger::new("%a %{User-Agent}i"))
-            // create cookie based session middleware
+            // create cookie based session middleware, limited to 4000 bytes of data
             .wrap(CookieSession::signed(&[0; 32]).secure(false))
             // register app_state
             .app_data(app_state_extractor.clone())
