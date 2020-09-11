@@ -15,23 +15,19 @@ use serde::{Deserialize, Serialize};
 const HOST: &str = "127.0.0.1";
 const PORT: u32 = 8088;
 
-
-// A request handler is a function that accepts zero or more parameters that can be extracted from a request
-// (ie, impl FromRequest) and returns a type that can be converted into an HttpResponse (ie, impl Responder)
-// Any long, non-cpu-bound operation (e.g. I/O, database operations, etc.) should be expressed as futures or
-// asynchronous functions. Async handlers get executed concurrently by worker threads and thus don’t block execution.
-async fn get_welcome_page() -> Result<HttpResponse> {
-    Ok(HttpResponse::build(StatusCode::OK)
+/// Homepage handler
+async fn get_homepage() -> Result<HttpResponse> {
+    let response = HttpResponse::build(StatusCode::OK)
         .content_type("text/html; charset=utf-8")
-        .body(include_str!("../static/welcome.html")))
+        .body(include_str!("../static/welcome.html"));
+    Ok(response)
 }
 
 /// 404 handler
 async fn get_404_page(req: HttpRequest) -> Result<fs::NamedFile> {
-    // debugging
-    println!("{:?}", req);
-
-    Ok(fs::NamedFile::open("static/404.html")?.set_status_code(StatusCode::NOT_FOUND))
+    println!("{:?}", req); // debugging
+    let file = fs::NamedFile::open("static/404.html")?.set_status_code(StatusCode::NOT_FOUND);
+    Ok(file)
 }
 
 /// favicon handler
@@ -46,11 +42,9 @@ async fn get_students_html() -> impl Responder {
     HttpResponse::Ok().body(format!("The students are: Claire, David, Louise"))
 }
 
-// Path provides information that can be extracted from the Request’s path.
-// You can deserialize any variable segment from the path, e.g. by extracting the segments into a tuple.
-async fn get_student_html(path: web::Path<(u32, )>) -> impl Responder {
-    // extract path info from /students/{id}
-    let student_id: u32 = path.0;
+async fn get_student_html(req_path: web::Path<(u32, )>) -> impl Responder {
+    // Use Path extractor to extract id segment from /students/{id} into tuple
+    let student_id: u32 = req_path.0;
     match student_id {
         1 => HttpResponse::Ok().body("Claire Lisp"),
         2 => HttpResponse::Ok().body("David Haskell"),
@@ -59,31 +53,24 @@ async fn get_student_html(path: web::Path<(u32, )>) -> impl Responder {
     }
 }
 
-// JSON serialization using serde.
-// Serde is able to serialize and deserialize common Rust data types out-of-the-box.
-// It provides a derive macro to generate serialization implementation for structs in your own program.
+// JSON serialization using serde
 #[derive(Serialize)]
 struct Classroom {
     name: &'static str,
     capacity: u32,
 }
 
-// Alternatively, you could provide your own custom implementation of the Serialize trait
-// impl Serialize for Classroom {
-//     fn serialize<S>(&self, serializer: S) -> Result<<S as Serializer>::Ok, <S as Serializer>::Error> where
-//         S: Serializer {
-//         unimplemented!()
-//     }
-// }
-
-// Types that implement Responder can be used as the return type of a request handler
+// Implement Responder trait so Classroom structs can be returned from request handlers
 impl Responder for Classroom {
     type Error = Error;
     type Future = Ready<Result<HttpResponse, Error>>;
 
     fn respond_to(self, _req: &HttpRequest) -> Self::Future {
         let json_body = serde_json::to_string(&self).unwrap();
-        ready(Ok(HttpResponse::Ok().content_type("application/json").body(json_body)))
+        let response = HttpResponse::Ok().content_type("application/json").body(json_body);
+        let result = Ok(response);
+        // create a future that is immediately ready with a value:
+        ready(result)
     }
 }
 
@@ -91,65 +78,69 @@ async fn get_classroom_json() -> impl Responder {
     Classroom { name: "5VR", capacity: 20 }
 }
 
-// Application state - will be shared by multiple (requests processing) threads.
-// Application state can be accessed with the web::Data<T> extractor where T is type of state.
-// Internally, web::Data uses Arc<T>, i.e. 'Atomically Reference Counted'.
-// Shared references in Rust disallow mutation by default, and Arc is no exception.
-// To mutate through an Arc we need to use Mutex, RwLock, or one of the Atomic types.
-struct AppState {
-    teacher_name: Mutex<String>
-}
 
 #[get("/teacher")]
-async fn get_teacher_html(data: web::Data<AppState>) -> impl Responder {
-    let teacher_name: MutexGuard<String> = data.teacher_name.lock().unwrap(); // get MutexGuard
+async fn get_teacher_html(app_state: web::Data<AppState>) -> impl Responder {
+    let teacher_name: MutexGuard<String> = app_state.teacher_name.lock().unwrap();
     HttpResponse::Ok().body(format!("The teacher is: {}", teacher_name))
 }
 
+/// Handler to update the teacher name stored in global application state via PUT request.
+/// Teacher name specified via request path.
+/// Time of update saved to session state.
 #[put("/teacher/{name}")]
-async fn put_teacher_in_req_path(session: Session, req: HttpRequest, data: web::Data<AppState>) -> impl Responder {
+async fn put_teacher_via_req_path(session: Session, req: HttpRequest, app_state: web::Data<AppState>) -> impl Responder {
     let last_update_st = session.get::<time::SystemTime>("last_teacher_update").unwrap().unwrap();
     let last_update_dt: DateTime<Utc> = last_update_st.into();
     session.set("last_teacher_update", time::SystemTime::now()).unwrap();
 
-    let mut teacher_name: MutexGuard<String> = data.teacher_name.lock().unwrap();
-    // Instead of using Path, it is also possible to get or query the request for path parameters by name:
+    let mut teacher_name: MutexGuard<String> = app_state.teacher_name.lock().unwrap();
+    // As an alternative to Path extractor, it is also possible query the request for path parameters by name:
     *teacher_name = req.match_info().get("name").unwrap().parse().unwrap();
     HttpResponse::Ok().body(
         format!("Last updated: {} UTC. Teacher changed to: {}", last_update_dt.format("%d/%m/%Y %T"), teacher_name))
 }
 
-// JSON deserialization using serde
+// JSON request deserialization. Must implement the Deserialize trait from serde.
 #[derive(Deserialize)]
 struct TeacherUpdate {
     name: String,
 }
 
+/// Handler to update the teacher name stored in global application state via PUT request.
+/// Teacher name specified via JSON in request body.
+/// Time of update saved to session state.
 #[put("/teacher")]
-async fn put_teacher_in_req_body(session: Session, info: web::Json<TeacherUpdate>, data: web::Data<AppState>)
+async fn put_teacher_in_req_body(session: Session, json_body: web::Json<TeacherUpdate>, app_state: web::Data<AppState>)
                                  -> impl Responder {
     let last_update_st = session.get::<time::SystemTime>("last_teacher_update").unwrap().unwrap();
     let last_update_dt: DateTime<Utc> = last_update_st.into();
     session.set("last_teacher_update", time::SystemTime::now()).unwrap();
 
-    let mut teacher_name: MutexGuard<String> = data.teacher_name.lock().unwrap();
-    *teacher_name = info.name.clone();
+    let mut teacher_name: MutexGuard<String> = app_state.teacher_name.lock().unwrap();
+    *teacher_name = json_body.name.clone();
     HttpResponse::Ok().body(
         format!("Last updated: {} UTC. Teacher changed to: {}", last_update_dt.format("%d/%m/%Y %T"), teacher_name))
 }
 
+/// Shared application state type
+struct AppState {
+    // Mutex (or RwLock) is necessary to mutate safely across threads
+    teacher_name: Mutex<String>
+}
+
 #[actix_rt::main]
 async fn main() -> std::io::Result<()> {
-    // Initialize application state, shared with all routes and resources within the same scope.
-    // Do not use in a clustered set-up!
-    let app_state = web::Data::new(AppState {
+    // Initialize application state. Do not use in a clustered set-up!
+    let app_state = AppState {
         teacher_name: Mutex::new(String::from("Mat")),
-    });
+    };
+    let app_state_extractor = web::Data::new(app_state);
 
     env_logger::from_env(env_logger::Env::default().default_filter_or("info")).init();
 
-    HttpServer::new(move || {
-        // "move closure" transfers ownership of app_state value away from main thread
+    let server = HttpServer::new(move || {
+        // "move closure" needed to transfer ownership of app_state value from main thread
         App::new()
             // register logging middleware, it uses the standard log crate to log information.
             .wrap(Logger::default())
@@ -157,15 +148,15 @@ async fn main() -> std::io::Result<()> {
             // create cookie based session middleware
             .wrap(CookieSession::signed(&[0; 32]).secure(false))
             // register app_state
-            .app_data(app_state.clone())
+            .app_data(app_state_extractor.clone())
             // register request handlers on a path with a method
-            .route("/", web::get().to(get_welcome_page))
+            .route("/", web::get().to(get_homepage))
             .route("/students", web::get().to(get_students_html))
             .route("/students/{id}", web::get().to(get_student_html))
             .route("/classroom", web::get().to(get_classroom_json))
             // simpler registration when using macros
             .service(get_teacher_html)
-            .service(put_teacher_in_req_path)
+            .service(put_teacher_via_req_path)
             .service(put_teacher_in_req_body)
             .service(get_favicon_file)
             // default
@@ -181,6 +172,7 @@ async fn main() -> std::io::Result<()> {
         // Once the workers are created, they each receive a separate application instance to handle requests.
         // Each worker thread processes its requests sequentially.
         .workers(8)
-        .run()
-        .await
+        .run();
+
+    server.await
 }

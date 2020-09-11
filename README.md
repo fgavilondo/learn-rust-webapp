@@ -1,84 +1,169 @@
 # learn-rust-webapp
 
-Sample Rust actix-web webapp. Not a SPA.
+Sample Rust actix-web webapp. Server-side rendered HTML (not a SPA).
 
-git clone https://github.com/fgavilondo/learn-rust-webapp.git
+    git clone https://github.com/fgavilondo/learn-rust-webapp.git
 
 # Topics covered
 
-* actix-rt Server set-up
-* actix-web App set-up
+* actix-web App and HTTP server set-up
 * Basic URL dispatch
-* Asynchronous request handling
+* (Asynchronous) Request handling
 * GET and PUT requests
-* Type-safe access to HTTP request information (actix_web::HttpRequest, web::Path, web::Json)
+* Type-safe access to HTTP Request information
+* Thread-safe access to (and modification of) global application state 
 * JSON serialization/deserialization using the serde and serde_json crates
-* Thread-safe access and modification of global application state 
-* Using the Logging middleware
-* Using the cookie based Session middleware
+* Using middlewares (Logging, cookie based Session)
 * Templates?
 * ORM?
 
 # Topics not covered
 
-* SSL
+* SSL/TLS
 * Authentication/Authorization
-* POST and forms
+* POST and HTML forms
 * Serving static files (except for favicon.ico)
 * Implementing custom middlewares
 * Using application guards to filter requests, e.g. based on HTTP headers
-* Testing
+* Unit/integration testing
 
-# Web framework: actix-web
+# Web framework
 
 actix-web, part of https://actix.rs/
 
-A high level web framework built atop of the actix actor framework and the Tokio async IO system. 
+A high level web framework providing routing, middlewares, pre-processing of requests, post-processing of responses, etc.
 
-It provides routing, middlewares, pre-processing of requests, post-processing of responses, etc.
- 
+Built atop of the actix actor framework and the Tokio async IO system. 
+
 Highly performant/concurrent.
 
-# HTTP server
+(Other popular web frameworks are rocket and gotham).
 
-actix-rt, part of https://actix.rs/, implemented atop of the http and h2 crates.
+# Detour: Rust async functions
 
-(Other popular choices are hyper and tiny_http).
-
-# App object
-
-actix_web::App
-
-Used for registering routes for resources and middlewares.
-
-Application state is shared with all routes and resources within the same scope.
-State can be accessed with the web::Data<T> extractor where T is type of state.
-
-Access to state must be synchronised for multi-threaded modification using Mutex, RwLock, Atomic.
-
-# Async functions
-
-Async-await is a way to write functions that can "pause", return control to the runtime, and then pick up from where they left off.
-Typically, those pauses are to wait for I/O, but there can be any number of uses.
+Async/Await is a way to write functions that can "pause", return control to the runtime, and then pick up from where they left off.
 This model is also known as "coroutines", or interleaved processing.
 
-Implementation: async functions return a Future instead of blocking the current thread.
+Typically, those pauses are to wait for I/O, but there can be any number of uses.
 
-Future is a suspended computation that is waiting to be executed. To actually execute the future, use the .await operator.
+async functions return a Future instead of blocking the current thread, allowing other Futures to run.
 
-Blocked Futures will yield control of the thread, allowing other Futures to run.
+A Future is a suspended computation that is waiting to be executed. To actually execute the future, you use the .await operator.
 
-See https://rust-lang.github.io/async-book/
+Most actix-web request handlers are implemented as async functions.
 
-# Resource handlers
+See https://rust-lang.github.io/async-book/ for more information.
+
+# actix_web::HttpServer
+
+Responsible for serving HTTP requests. Accepts an application factory as a parameter.
+
+Use bind() method to bind to a specific socket address.
+To bind SSL socket, use bind_openssl() or bind_rustls(). 
+
+HttpServer automatically starts a number of HTTP workers, by default this number is equal to the number of logical
+CPUs in the system. This number can be overridden with the workers() method.
+
+The run() Method returns an instance of the Server type which can be .await(ed)
+
+Server methods:
+
+pause() - Pause accepting incoming connections
+resume() - Resume accepting incoming connections
+stop() - Stop incoming connection processing, stop all workers and exit
+
+Other popular HTTP server choices are hyper and tiny_http.
+
+# actix_web::App object
+
+Used for URL dispatch, i.e. registering routes for resources and middlewares.
+
+Application state is shared with all routes and resources within the same scope.
+Application state can be accessed with the web::Data<T> extractor where T is type of state.
+
+Access to shared app state must be synchronised for multi-threaded modification using Mutex, RwLock or Atomic.
+
+# Request handlers
 
 A request handler is a function that accepts zero or more parameters that can be extracted from a request 
-(ie, impl FromRequest) and returns a type that can be converted into an HttpResponse (ie, impl Responder).
-
-A request handler can be async, but doesn't have to.
+(ie, impl actix_web::FromRequest trait) and returns either a HttpResponse directly, or a type that can be converted into 
+a HttpResponse (ie, impl actix_web::Responder trait).
 
 Request handling happens in two stages. First the handler object is called, returning any object that implements 
-the actix_web::Responder trait. Then, respond_to() is called on the returned object, converting itself to a HttpResponse or Error.
+the Responder trait. Then, respond_to() is called on the returned object, converting itself to a HttpResponse or Error.
+
+By default actix-web provides Responder implementations for some standard types, such as &'static str, String, etc. as
+well as for actix-web types such as NamedFile.
+
+To return your custom type directly from a handler function, the type needs to implement the Responder trait (see Classroom struct).
+
+Any long, non-cpu-bound operation (e.g. I/O, database operations, etc.) should be expressed as futures or
+asynchronous functions.
+
+Request handlers are registered with the App using the route() or service() method.
+
+# Type-safe access to HTTP Request information 
+
+Actix-web provides a facility for type-safe request information access called extractors (ie, impl FromRequest).
+You can define an extractor as a parameter of your request handler.
+
+By default, actix-web provides several extractor implementations, e.g.: 
+
+* web::Path - Path provides information that can be extracted from the Request’s path. You can deserialize any variable segment from the path, e.g. by extracting the segments into a tuple.
+* actix_web::HttpRequest - HttpRequest itself is an extractor which returns self, in case you need access to the request.
+* web::Json - Allows deserialization of a request body into a struct. To extract typed information from a request’s body, the type T must implement the Deserialize trait from serde.
+
+Others (not used in this app): Query, Form, String, ...
+
+# JSON Serialization/Deserialization
+
+* https://crates.io/crates/serde
+* https://crates.io/crates/serde_json
+
+## Serialization
+
+Serde provides a 'derive' macro to generate a simple, 1:1 serialization implementation for structs in your own program:
+
+    #[derive(Serialize)]
+    struct MyStruct {
+      // ...
+    }
+
+Alternatively, you can provide your own custom implementation of the Serialize trait:
+
+    impl Serialize for MyStruct {
+        fn serialize<S>(&self, serializer: S) -> Result<<S as Serializer>::Ok, <S as Serializer>::Error> where
+            S: Serializer {
+            // ... here you could do all sorts of fancy stuff, e.g. combine fields 
+        }
+    }
+
+Actually serialize using:
+
+    serde_json::to_string(&MyStruct).unwrap();
+
+
+## Deserialization
+
+Use the provided 'derive' macro to make your structs deserializable:
+
+    #[derive(Deserialize)]
+    struct MyStruct {
+        // ...
+    }
+
+... and the web::Json extractor to deserialize them from the HTTP request.
+
+# In-memory application state
+
+Application state (usually a struct) is registered with the App when server is initialised. It can be accessed in your request handlers with the web::Data<T> extractor where T is type of state.
+
+Application state is shared by multiple (requests processing) threads. Internally, web::Data uses Arc<T>, i.e. 'Atomically Reference Counted'.
+
+Shared references in Rust disallow mutation by default, and Arc is no exception. To mutate through an Arc we need to use Mutex, RwLock, or one of the Atomic types.
+
+# Session middleware
+
 
 # DB driver
 
