@@ -1,3 +1,4 @@
+use std::ops::Add;
 use std::sync::{Mutex, MutexGuard};
 use std::time;
 
@@ -85,20 +86,34 @@ async fn get_teacher_html(app_state: web::Data<AppState>) -> impl Responder {
     HttpResponse::Ok().body(format!("The teacher is: {}", teacher_name))
 }
 
+/// Utility to extract stored system time as UTC string from session cookie
+fn get_last_teacher_update(session: &Session) -> String {
+    // value will only be there if it has been updated at least once in this session
+    let last_update_option = session.get::<time::SystemTime>("last_teacher_update").unwrap();
+    let last_update_str;
+    if last_update_option.is_some() {
+        let system_time = last_update_option.unwrap();
+        let date_time: DateTime<Utc> = system_time.into();
+        last_update_str = date_time.format("%d/%m/%Y %T").to_string().add(" UTC");
+    } else {
+        last_update_str = String::from("never");
+    }
+    last_update_str
+}
+
 /// Handler to update the teacher name stored in global application state via PUT request.
 /// Teacher name specified via request path.
 /// Time of update saved to session state (cookie).
 #[put("/teacher/{name}")]
 async fn put_teacher_via_req_path(session: Session, req: HttpRequest, app_state: web::Data<AppState>) -> impl Responder {
-    let last_update_st = session.get::<time::SystemTime>("last_teacher_update").unwrap().unwrap();
-    let last_update_dt: DateTime<Utc> = last_update_st.into();
+    let last_update_str: String = get_last_teacher_update(&session);
     session.set("last_teacher_update", time::SystemTime::now()).unwrap();
 
     let mut teacher_name: MutexGuard<String> = app_state.teacher_name.lock().unwrap();
     // As an alternative to Path extractor, it is also possible query the request for path parameters by name:
     *teacher_name = req.match_info().get("name").unwrap().parse().unwrap();
     HttpResponse::Ok().body(
-        format!("Last updated: {} UTC. Teacher changed to: {}", last_update_dt.format("%d/%m/%Y %T"), teacher_name))
+        format!("Last updated: {}. Teacher changed to: {}", last_update_str, teacher_name))
 }
 
 // JSON request deserialization. Must implement the Deserialize trait from serde.
@@ -113,14 +128,13 @@ struct TeacherUpdate {
 #[put("/teacher")]
 async fn put_teacher_in_req_body(session: Session, json_body: web::Json<TeacherUpdate>, app_state: web::Data<AppState>)
                                  -> impl Responder {
-    let last_update_st = session.get::<time::SystemTime>("last_teacher_update").unwrap().unwrap();
-    let last_update_dt: DateTime<Utc> = last_update_st.into();
+    let last_update_str: String = get_last_teacher_update(&session);
     session.set("last_teacher_update", time::SystemTime::now()).unwrap();
 
     let mut teacher_name: MutexGuard<String> = app_state.teacher_name.lock().unwrap();
     *teacher_name = json_body.name.clone();
     HttpResponse::Ok().body(
-        format!("Last updated: {} UTC. Teacher changed to: {}", last_update_dt.format("%d/%m/%Y %T"), teacher_name))
+        format!("Last updated: {}. Teacher changed to: {}", last_update_str, teacher_name))
 }
 
 /// Shared application state type
