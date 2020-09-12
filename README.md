@@ -6,7 +6,7 @@ Sample Rust actix-web webapp. Server-side rendered HTML (not a SPA).
 
 # Topics covered
 
-* actix-web App and HTTP server set-up
+* actix-web App and HTTP Server set-up
 * Basic URL dispatch
 * (Asynchronous) Request handling
 * GET and PUT requests
@@ -42,16 +42,54 @@ Built atop of the actix actor framework and the Tokio async IO system -> highly 
 Async/Await is a way to write functions that can "pause", return control to the runtime, and then pick up from where they left off.
 Typically, those pauses are to wait for I/O, but there can be any number of uses.
 
-This model is also known as "coroutines", or interleaved processing.
-It allows us to implement concurrent code without worrying about threads explicitly.
+This model is also known as "coroutines", or interleaved processing. It is an example of non-preemptive multitasking.
+It allows writing asynchronous, non-blocking code with minimal overhead, and looking almost like traditional synchronous, blocking code. 
 
-async functions return a Future instead of blocking the current thread, allowing other Futures to run.
+async functions return a Future object that can be used to block and wait for the operation to complete at some other convenient time.
+ 
+Example:
 
-A Future is a suspended computation that is waiting to be executed. To actually execute the future, you use the .await operator.
+    use futures::executor::block_on;
+    
+    async fn print_one() {
+        print!(" 1 ");
+    }
+    
+    async fn print_one_two() {
+        // Inside an async fn, you can use .await to wait for the completion of another type that implements
+        // the Future trait, such as the output of another async fn.
+        // Unlike block_on(), .await doesn't block the current thread, but instead asynchronously waits for
+        // the future to complete.
+        print_one().await;
+        print!(" 2 ");
+    }
+    
+    async fn print_three() {
+        print!(" 3 ");
+    }
+    
+    async fn print_one_two_three_maybe() {
+        let f1 = print_one_two();  // nothing printed, returns a future
+        let f2 = print_three();    // nothing printed, returns a future
+    
+        // `join!` is like `.await` but can wait for multiple futures concurrently.
+        // If we're temporarily blocked in one future, another
+        // future will take over the current thread. If both futures are blocked, then
+        // this function is blocked and will yield to the executor.
+        futures::join!(f1, f2);
+    }
+    
+    fn main() {
+        // blocks the current thread until the provided future has run to completion.
+        block_on(print_one_two_three_maybe());
+    }
 
 Most actix-web request handlers are implemented as async functions.
 
 See https://rust-lang.github.io/async-book/ for more information.
+
+Languages with async/await syntax: Rust, C#, Kotlin, JavaScript, Python
+Notable exceptions: Java, Go (goroutines)
 
 # actix_web::HttpServer
 
