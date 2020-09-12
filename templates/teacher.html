@@ -1,14 +1,6 @@
-<!DOCTYPE html>
-<html>
+{% extends "base.html" %}
 
-<head>
-    <meta charset="utf-8"/>
-    <title>learn-rust-webapp: Teacher</title>
-    <link rel="shortcut icon" type="image/x-icon" href="/favicon"/>
-</head>
-
-<body>
-
+{% block content %}
 <h1>Teacher</h1>
 
 <p>Current teacher is '{{ name }}'.<br/>
@@ -22,10 +14,7 @@
     <p><input type="submit"></p>
     <!-- Submitted as /teacher GET request with 'name' query parameter, e.g. GET /teacher?name=Mary -->
 </form>
-
 <br/>
-
 <p><a href="/">Back to home</a></p>
+{% endblock %}
 
-</body>
-</html>

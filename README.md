@@ -1,6 +1,6 @@
 # learn-rust-webapp
 
-Sample Rust actix-web webapp. Server-side rendered HTML (not a SPA).
+Sample Rust actix-web webapp. Server-side rendered HTML, not a SPA.
 
     git clone https://github.com/fgavilondo/learn-rust-webapp.git
 

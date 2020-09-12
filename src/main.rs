@@ -4,7 +4,6 @@ use std::sync::{Mutex, MutexGuard};
 use actix_files as fs;
 use actix_session::{CookieSession, Session};
 use actix_web::{App, Error, get, HttpRequest, HttpResponse, HttpServer, put, Responder, Result, web};
-use actix_web::http::StatusCode;
 use actix_web::middleware::Logger;
 use askama::Template;
 use chrono::offset::Utc;
@@ -16,19 +15,32 @@ const HOST: &str = "127.0.0.1";
 const PORT: u32 = 8088;
 const TEACHER_UPDATE_SESSION_PARAM: &str = "last_teacher_update";
 
+#[derive(Template)] // this will generate the code...
+#[template(path = "welcome.html")] // using the template in this path, relative to the templates dir
+struct WelcomeTemplate<'a> {
+    // the name of the struct can be anything
+    // the struct field names (if any) should match the variable names in the template
+    title: &'a str,
+}
+
 /// Homepage handler
 async fn get_homepage() -> Result<HttpResponse> {
-    let response = HttpResponse::build(StatusCode::OK)
-        .content_type("text/html; charset=utf-8")
-        .body(include_str!("../static/welcome.html"));
-    Ok(response)
+    let html = WelcomeTemplate { title: "Welcome" }.render().unwrap();
+    Ok(HttpResponse::Ok().content_type("text/html").body(html))
+}
+
+#[derive(Template)]
+#[template(path = "404.html")]
+struct NotFoundTemplate<'a> {
+    title: &'a str,
 }
 
 /// 404 handler
-async fn get_404_page(req: HttpRequest) -> Result<fs::NamedFile> {
-    println!("{:?}", req); // debugging
-    let file = fs::NamedFile::open("static/404.html")?.set_status_code(StatusCode::NOT_FOUND);
-    Ok(file)
+async fn get_404_page(req: HttpRequest) -> Result<HttpResponse> {
+    println!("Not Found: {:?}", req); // debugging
+
+    let html = NotFoundTemplate { title: "Not Found" }.render().unwrap();
+    Ok(HttpResponse::NotFound().content_type("text/html").body(html))
 }
 
 /// favicon handler
@@ -42,11 +54,13 @@ async fn get_favicon_file() -> Result<fs::NamedFile> {
 #[derive(Template)]
 #[template(path = "students.html")]
 struct StudentsTemplate<'a> {
+    title: &'a str,
     text: &'a str,
 }
 
 async fn get_students_html() -> Result<HttpResponse> {
     let html = StudentsTemplate {
+        title: "Students",
         text: "Claire, David, Louise",
     }.render().unwrap();
     Ok(HttpResponse::Ok().content_type("text/html").body(html))
@@ -93,6 +107,7 @@ async fn get_classroom_json() -> impl Responder {
 #[derive(Template)]
 #[template(path = "teacher.html")]
 struct TeacherTemplate<'a> {
+    title: &'a str,
     name: &'a str,
     last_update: &'a str,
 }
@@ -114,6 +129,7 @@ async fn get_teacher_html(session: Session, app_state: web::Data<AppState>,
     let lock_result = app_state.teacher_name.lock();
     let mut teacher_name: MutexGuard<String> = lock_result.unwrap();
 
+    // extractor for query parameters
     if let Some(name_query_param) = query.get("name") {
         // Form submission -> update app state.
         // This is a hack, we should really use POST for this!
@@ -122,25 +138,12 @@ async fn get_teacher_html(session: Session, app_state: web::Data<AppState>,
     }
 
     let html = TeacherTemplate {
+        title: "Teacher",
         name: &teacher_name.to_string(),
         last_update: &get_last_teacher_update(&session),
     }.render().unwrap();
 
     Ok(HttpResponse::Ok().content_type("text/html").body(html))
-}
-
-/// Handler to update the teacher name stored in global application state via PUT request.
-/// Teacher name specified via request path.
-/// Time of update saved to session state (cookie).
-#[put("/teacher/{name}")]
-async fn put_teacher_via_req_path(session: Session, req: HttpRequest, app_state: web::Data<AppState>) -> impl Responder {
-    let lock_result = app_state.teacher_name.lock();
-    let mut teacher_name: MutexGuard<String> = lock_result.unwrap();
-    let previous_name: String = teacher_name.to_string().clone();
-    // We can query the HttpRequest for path parameters by name:
-    *teacher_name = req.match_info().get("name").unwrap().parse().unwrap();
-    record_teacher_update(&session);
-    HttpResponse::Ok().body(format!("Teacher changed from '{}' to '{}'", previous_name, teacher_name))
 }
 
 // JSON request deserialization. Must implement the Deserialize trait from serde.
@@ -150,7 +153,7 @@ struct TeacherUpdateInfo {
 }
 
 /// Handler to update the teacher name stored in global application state via PUT request.
-/// Teacher name specified via JSON in request body.
+/// Teacher name specified via JSON in request body (web::Json extractor).
 /// Time of update saved to session state (cookie).
 #[put("/teacher")]
 async fn put_teacher_via_json_req_body(session: Session, json_body: web::Json<TeacherUpdateInfo>,
@@ -159,6 +162,20 @@ async fn put_teacher_via_json_req_body(session: Session, json_body: web::Json<Te
     let mut teacher_name: MutexGuard<String> = lock_result.unwrap();
     let previous_name: String = teacher_name.to_string().clone();
     *teacher_name = json_body.name.clone();
+    record_teacher_update(&session);
+    HttpResponse::Ok().body(format!("Teacher changed from '{}' to '{}'", previous_name, teacher_name))
+}
+
+/// Handler to update the teacher name stored in global application state via PUT request.
+/// Teacher name specified via request path (to demonstrate using HttpRequest as an extractor).
+/// Time of update saved to session state (cookie).
+#[put("/teacher/{name}")]
+async fn put_teacher_via_req_path(session: Session, req: HttpRequest, app_state: web::Data<AppState>) -> impl Responder {
+    let lock_result = app_state.teacher_name.lock();
+    let mut teacher_name: MutexGuard<String> = lock_result.unwrap();
+    let previous_name: String = teacher_name.to_string().clone();
+    // We can query the HttpRequest for path parameters by name:
+    *teacher_name = req.match_info().get("name").unwrap().parse().unwrap();
     record_teacher_update(&session);
     HttpResponse::Ok().body(format!("Teacher changed from '{}' to '{}'", previous_name, teacher_name))
 }
