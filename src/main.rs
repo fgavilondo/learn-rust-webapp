@@ -5,6 +5,7 @@ use actix_session::{CookieSession, Session};
 use actix_web::{App, Error, get, HttpRequest, HttpResponse, HttpServer, put, Responder, Result, web};
 use actix_web::http::StatusCode;
 use actix_web::middleware::Logger;
+use askama::Template;
 use chrono::offset::Utc;
 use env_logger;
 use futures::future::{ready, Ready};
@@ -36,8 +37,17 @@ async fn get_favicon_file() -> Result<fs::NamedFile> {
     Ok(fs::NamedFile::open("static/favicon.ico")?)
 }
 
-async fn get_students_html() -> impl Responder {
-    HttpResponse::Ok().body(format!("The students are: Claire, David, Louise"))
+#[derive(Template)]
+#[template(path = "students.html")]
+struct StudentsTemplate<'a> {
+    text: &'a str,
+}
+
+async fn get_students_html() -> Result<HttpResponse> {
+    let html = StudentsTemplate {
+        text: "Claire, David, Louise",
+    }.render().unwrap();
+    Ok(HttpResponse::Ok().content_type("text/html").body(html))
 }
 
 async fn get_student_html(req_path: web::Path<(u32, )>) -> impl Responder {
@@ -76,15 +86,26 @@ async fn get_classroom_json() -> impl Responder {
     Classroom { name: "5VR", capacity: 20 }
 }
 
+#[derive(Template)]
+#[template(path = "teacher.html")]
+struct TeacherTemplate<'a> {
+    name: &'a str,
+    last_update: &'a str,
+}
+
 #[get("/teacher")]
-async fn get_teacher_html(session: Session, app_state: web::Data<AppState>) -> impl Responder {
+async fn get_teacher_html(session: Session, app_state: web::Data<AppState>) -> Result<HttpResponse> {
     let lock_result = app_state.teacher_name.lock();
     let teacher_name: MutexGuard<String> = lock_result.unwrap();
     let previous_session_update: String = session.get::<String>("last_teacher_update").unwrap().unwrap_or(
         String::from("never"));
-    HttpResponse::Ok().body(
-        format!("Current teacher is '{}'. Last time you updated the teacher during the current session: {}",
-                teacher_name, previous_session_update))
+
+    let html = TeacherTemplate {
+        name: &teacher_name.to_string(),
+        last_update: &previous_session_update,
+    }.render().unwrap();
+
+    Ok(HttpResponse::Ok().content_type("text/html").body(html))
 }
 
 /// Handler to update the teacher name stored in global application state via PUT request.
@@ -103,7 +124,7 @@ async fn put_teacher_via_req_path(session: Session, req: HttpRequest, app_state:
 
 // JSON request deserialization. Must implement the Deserialize trait from serde.
 #[derive(Deserialize)]
-struct TeacherUpdate {
+struct TeacherUpdateInfo {
     name: String,
 }
 
@@ -111,7 +132,7 @@ struct TeacherUpdate {
 /// Teacher name specified via JSON in request body.
 /// Time of update saved to session state (cookie).
 #[put("/teacher")]
-async fn put_teacher_via_json_req_body(session: Session, json_body: web::Json<TeacherUpdate>,
+async fn put_teacher_via_json_req_body(session: Session, json_body: web::Json<TeacherUpdateInfo>,
                                        app_state: web::Data<AppState>) -> impl Responder {
     let lock_result = app_state.teacher_name.lock();
     let mut teacher_name: MutexGuard<String> = lock_result.unwrap();
@@ -127,6 +148,8 @@ struct AppState {
     teacher_name: Mutex<String>
 }
 
+// This macro marks the associated async function to be executed within the actix runtime.
+// We have to add actix-rt to our Cargo dependencies.
 #[actix_rt::main]
 async fn main() -> std::io::Result<()> {
     // Initialize application state. Do not use in a clustered set-up!

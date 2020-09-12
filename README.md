@@ -14,7 +14,7 @@ Sample Rust actix-web webapp. Server-side rendered HTML (not a SPA).
 * Thread-safe access to (and modification of) global application state 
 * JSON serialization/deserialization using the serde and serde_json crates
 * Using middlewares (Logging, cookie based Session)
-* Templates?
+* Askama templating engine
 * ORM?
 
 # Topics not covered
@@ -210,6 +210,30 @@ A signed cookie may be viewed but not modified by the client. A private cookie m
 
 To access session data the actix_session::Session extractor must be used. 
 
+# Template Rendering
+
+Multiple options:
+
+* [Askama](https://crates.io/crates/askama): a template rendering engine based on [Jinja](https://palletsprojects.com/p/jinja/).
+It generates Rust code from your templates at compile time based on a user-defined struct to hold the template's context.
+* [Handlebars](https://crates.io/crates/handlebars): [Handlebars templating language](https://handlebarsjs.com/) implemented in Rust.
+* [Tera](https://crates.io/crates/tera): a template engine inspired by Jinja2 and the Django template language.
+* [Yarte](https://crates.io/crates/yarte): Yarte stands for Yet Another Rust Template Engine. It uses a Handlebars-like syntax.
+* [TinyTemplate](https://crates.io/crates/tinytemplate): a small, minimalistic text templating system with limited dependencies.
+
+I picked Askama because I've used Jinja with Python before. Fast (compiled). Drawback: must restart app if HTML changes.
+
+Askama features:
+
+* Template inheritance
+* Loops, if/else statements and include support
+* Macro support
+* Variables (no mutability allowed)
+* Some built-in filters, and the ability to use your own
+* Whitespace suppressing with '-' markers
+* Opt-out HTML escaping
+* Syntax customization
+
 # DB driver
 
 ??
@@ -223,4 +247,3 @@ To access session data the actix_session::Session extractor must be used.
 * https://www.arewewebyet.org/
 * https://actix.rs/docs/installation/
 * https://github.com/actix/examples
-* https://qiita.com/kimagure/items/e24d7d6514a6a0dd2b48
