@@ -55,14 +55,17 @@ async fn get_favicon_file() -> Result<fs::NamedFile> {
 #[template(path = "students.html")]
 struct StudentsTemplate<'a> {
     title: &'a str,
-    text: &'a str,
+    students: &'a [Student],
 }
 
-async fn get_students_html() -> Result<HttpResponse> {
+async fn get_students_page(app_state: web::Data<AppState>) -> Result<HttpResponse> {
+    let students = app_state.students.lock().unwrap();
+
     let html = StudentsTemplate {
         title: "Students",
-        text: "Claire, David, Louise",
+        students: &students[..], // extract slice of all vector elements
     }.render().unwrap();
+
     Ok(HttpResponse::Ok().content_type("text/html").body(html))
 }
 
@@ -124,7 +127,7 @@ fn get_last_teacher_update(session: &Session) -> String {
 }
 
 #[get("/teacher")]
-async fn get_teacher_html(session: Session, app_state: web::Data<AppState>,
+async fn get_teacher_page(session: Session, app_state: web::Data<AppState>,
                           query: web::Query<HashMap<String, String>>) -> Result<HttpResponse> {
     let lock_result = app_state.teacher_name.lock();
     let mut teacher_name: MutexGuard<String> = lock_result.unwrap();
@@ -180,19 +183,28 @@ async fn put_teacher_via_req_path(session: Session, req: HttpRequest, app_state:
     HttpResponse::Ok().body(format!("Teacher changed from '{}' to '{}'", previous_name, teacher_name))
 }
 
+struct Student {
+    id: u32,
+    name: String,
+}
+
 /// Shared application state type
 struct AppState {
     // Mutex (or RwLock) is necessary to mutate safely across threads
-    teacher_name: Mutex<String>
+    teacher_name: Mutex<String>,
+    students: Mutex<Vec<Student>>,
 }
 
 // This macro marks the associated async function to be executed within the actix runtime.
 // We have to add actix-rt to our Cargo dependencies.
 #[actix_rt::main]
 async fn main() -> std::io::Result<()> {
-    // Initialize application state. Do not use in a clustered set-up!
+    // Initialize in-memory application state. Do not use in a clustered set-up!
     let app_state = AppState {
         teacher_name: Mutex::new(String::from("Mat")),
+        students: Mutex::new(vec![Student { id: 1, name: String::from("Claire") },
+                                  Student { id: 2, name: String::from("David") },
+                                  Student { id: 3, name: String::from("Lucy") }, ]),
     };
     let app_state_extractor = web::Data::new(app_state);
 
@@ -210,11 +222,11 @@ async fn main() -> std::io::Result<()> {
             .app_data(app_state_extractor.clone())
             // register request handlers on a path with a method
             .route("/", web::get().to(get_homepage))
-            .route("/students", web::get().to(get_students_html))
+            .route("/students", web::get().to(get_students_page))
             .route("/students/{id}", web::get().to(get_student_html))
             .route("/classroom", web::get().to(get_classroom_json))
             // simpler registration when using macros
-            .service(get_teacher_html)
+            .service(get_teacher_page)
             .service(put_teacher_via_req_path)
             .service(put_teacher_via_json_req_body)
             .service(get_favicon_file)

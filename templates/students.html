@@ -2,7 +2,13 @@
 
 {% block content %}
 <h1>Students</h1>
-<p>{{ text }}</p>
+
+<ul>
+    {% for student in students %}
+    <li>{{ student.name|e }}</li>
+    {% endfor %}
+</ul>
+
 <br/>
 <p><a href="/">Back to home</a></p>
 {% endblock %}
