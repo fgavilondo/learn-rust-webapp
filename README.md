@@ -59,7 +59,7 @@ Example:
         // Inside an async fn, you can use .await to wait for the completion of another type that implements
         // the Future trait, such as the output of another async fn.
         // Unlike block_on(), .await doesn't block the current thread, but instead asynchronously waits for
-        // the future to complete.
+        // the future to complete. In the meantime, other async functions can run.
         print_one().await;
         print!(" 2 ");
     }
