@@ -1,12 +1,10 @@
 use std::sync::{Mutex, MutexGuard};
-use std::time;
 
 use actix_files as fs;
 use actix_session::{CookieSession, Session};
 use actix_web::{App, Error, get, HttpRequest, HttpResponse, HttpServer, put, Responder, Result, web};
 use actix_web::http::StatusCode;
 use actix_web::middleware::Logger;
-use chrono::DateTime;
 use chrono::offset::Utc;
 use env_logger;
 use futures::future::{ready, Ready};
@@ -78,26 +76,15 @@ async fn get_classroom_json() -> impl Responder {
     Classroom { name: "5VR", capacity: 20 }
 }
 
-
 #[get("/teacher")]
-async fn get_teacher_html(app_state: web::Data<AppState>) -> impl Responder {
-    let teacher_name: MutexGuard<String> = app_state.teacher_name.lock().unwrap();
-    HttpResponse::Ok().body(format!("The teacher is: {}", teacher_name))
-}
-
-/// Utility to extract stored system time from session cookie and return it as RFC 3339 formatted UTC string
-fn get_last_teacher_update_as_rfc3339(session: &Session) -> String {
-    // value will only be there if it has been updated at least once in this session
-    let last_update_option = session.get::<time::SystemTime>("last_teacher_update").unwrap();
-    let last_update_str;
-    if last_update_option.is_some() {
-        let system_time = last_update_option.unwrap();
-        let date_time: DateTime<Utc> = system_time.into();
-        last_update_str = date_time.to_rfc3339();
-    } else {
-        last_update_str = String::from("never");
-    }
-    last_update_str
+async fn get_teacher_html(session: Session, app_state: web::Data<AppState>) -> impl Responder {
+    let lock_result = app_state.teacher_name.lock();
+    let teacher_name: MutexGuard<String> = lock_result.unwrap();
+    let previous_session_update: String = session.get::<String>("last_teacher_update").unwrap().unwrap_or(
+        String::from("never"));
+    HttpResponse::Ok().body(
+        format!("Current teacher is '{}'. Last time *you* updated the teacher during the current session: {}",
+                teacher_name, previous_session_update))
 }
 
 /// Handler to update the teacher name stored in global application state via PUT request.
@@ -105,14 +92,13 @@ fn get_last_teacher_update_as_rfc3339(session: &Session) -> String {
 /// Time of update saved to session state (cookie).
 #[put("/teacher/{name}")]
 async fn put_teacher_via_req_path(session: Session, req: HttpRequest, app_state: web::Data<AppState>) -> impl Responder {
-    let last_update_str: String = get_last_teacher_update_as_rfc3339(&session);
-    session.set("last_teacher_update", time::SystemTime::now()).unwrap();
-
-    let mut teacher_name: MutexGuard<String> = app_state.teacher_name.lock().unwrap();
-    // As an alternative to Path extractor, it is also possible query the request for path parameters by name:
+    let lock_result = app_state.teacher_name.lock();
+    let mut teacher_name: MutexGuard<String> = lock_result.unwrap();
+    let previous_name: String = teacher_name.to_string().clone();
+    // As an alternative to Path extractor, it is also possible query the HttpRequest for path parameters by name:
     *teacher_name = req.match_info().get("name").unwrap().parse().unwrap();
-    HttpResponse::Ok().body(
-        format!("Last updated: {}. Teacher changed to: {}", last_update_str, teacher_name))
+    session.set("last_teacher_update", Utc::now().to_rfc3339()).unwrap();
+    HttpResponse::Ok().body(format!("Teacher changed from '{}' to '{}'", previous_name, teacher_name))
 }
 
 // JSON request deserialization. Must implement the Deserialize trait from serde.
@@ -125,15 +111,14 @@ struct TeacherUpdate {
 /// Teacher name specified via JSON in request body.
 /// Time of update saved to session state (cookie).
 #[put("/teacher")]
-async fn put_teacher_in_req_body(session: Session, json_body: web::Json<TeacherUpdate>, app_state: web::Data<AppState>)
-                                 -> impl Responder {
-    let last_update_str: String = get_last_teacher_update_as_rfc3339(&session);
-    session.set("last_teacher_update", time::SystemTime::now()).unwrap();
-
-    let mut teacher_name: MutexGuard<String> = app_state.teacher_name.lock().unwrap();
+async fn put_teacher_via_json_req_body(session: Session, json_body: web::Json<TeacherUpdate>,
+                                       app_state: web::Data<AppState>) -> impl Responder {
+    let lock_result = app_state.teacher_name.lock();
+    let mut teacher_name: MutexGuard<String> = lock_result.unwrap();
+    let previous_name: String = teacher_name.to_string().clone();
     *teacher_name = json_body.name.clone();
-    HttpResponse::Ok().body(
-        format!("Last updated: {}. Teacher changed to: {}", last_update_str, teacher_name))
+    session.set("last_teacher_update", Utc::now().to_rfc3339()).unwrap();
+    HttpResponse::Ok().body(format!("Teacher changed from '{}' to '{}'", previous_name, teacher_name))
 }
 
 /// Shared application state type
@@ -170,7 +155,7 @@ async fn main() -> std::io::Result<()> {
             // simpler registration when using macros
             .service(get_teacher_html)
             .service(put_teacher_via_req_path)
-            .service(put_teacher_in_req_body)
+            .service(put_teacher_via_json_req_body)
             .service(get_favicon_file)
             // default
             .default_service(
