@@ -1,9 +1,8 @@
-use std::collections::HashMap;
 use std::sync::{Mutex, MutexGuard};
 
 use actix_files as fs;
 use actix_session::{CookieSession, Session};
-use actix_web::{App, get, HttpRequest, HttpResponse, HttpServer, put, Responder, Result, web};
+use actix_web::{App, get, HttpRequest, HttpResponse, HttpServer, post, put, Responder, Result, web};
 use actix_web::middleware::Logger;
 use askama::Template;
 use chrono::offset::Utc;
@@ -171,18 +170,9 @@ fn get_last_teacher_update(session: &Session) -> String {
 }
 
 #[get("/teacher")]
-async fn get_teacher_page(query: web::Query<HashMap<String, String>>, session: Session,
-                          app_state: web::Data<AppState>) -> Result<HttpResponse> {
+async fn get_teacher_page(session: Session, app_state: web::Data<AppState>) -> Result<HttpResponse> {
     let lock_result = app_state.teacher_name.lock();
-    let mut teacher_name: MutexGuard<String> = lock_result.unwrap();
-
-    // extractor for query parameters
-    if let Some(name_query_param) = query.get("name") {
-        // Form submission -> update app state.
-        // This is a hack, we should really use POST for this!
-        *teacher_name = name_query_param.clone();
-        record_teacher_update(&session);
-    }
+    let teacher_name: MutexGuard<String> = lock_result.unwrap();
 
     let html = TeacherTemplate {
         title: "Teacher",
@@ -193,10 +183,33 @@ async fn get_teacher_page(query: web::Query<HashMap<String, String>>, session: S
     Ok(HttpResponse::Ok().content_type("text/html").body(html))
 }
 
-// JSON request deserialization. Must implement the Deserialize trait from serde.
+// Must implement the Deserialize trait from serde for url-encoded form deserialization and JSON deserialization.
 #[derive(Deserialize)]
 struct TeacherUpdateInfo {
     name: String,
+}
+
+/// Handler to update the teacher name stored in global application state via POST request.
+/// Gets called only if the content type is "application/x-www-form-urlencoded".
+/// and the content of the request could be deserialized to a `TeacherUpdateInfo` struct.
+/// Time of update saved to session state (cookie).
+/// Note: POST shouldn't really be used to update a resource, but you can't PUT a HTML form,
+/// only GET it or POST it.
+#[post("/teacher")]
+async fn post_teacher_via_form(form: web::Form<TeacherUpdateInfo>, session: Session,
+                               app_state: web::Data<AppState>) -> Result<HttpResponse> {
+    let lock_result = app_state.teacher_name.lock();
+    let mut teacher_name: MutexGuard<String> = lock_result.unwrap();
+    *teacher_name = form.name.clone();
+    record_teacher_update(&session);
+
+    let html = TeacherTemplate {
+        title: "Teacher",
+        name: &teacher_name.to_string(),
+        last_update: &get_last_teacher_update(&session),
+    }.render().unwrap();
+
+    Ok(HttpResponse::Ok().content_type("text/html").body(html))
 }
 
 /// Handler to update the teacher name stored in global application state via PUT request.
@@ -214,7 +227,7 @@ async fn put_teacher_via_json_req_body(json_body: web::Json<TeacherUpdateInfo>, 
 }
 
 /// Handler to update the teacher name stored in global application state via PUT request.
-/// Teacher name specified via request path (to demonstrate using HttpRequest as an extractor).
+/// Teacher name specified via request path (just to demonstrate using the HttpRequest extractor).
 /// Time of update saved to session state (cookie).
 #[put("/teacher/{name}")]
 async fn put_teacher_via_req_path(req: HttpRequest, session: Session, app_state: web::Data<AppState>) -> impl Responder {
@@ -260,6 +273,7 @@ async fn main() -> std::io::Result<()> {
             .service(get_student_page)
             .service(get_classrooms_json)
             .service(get_teacher_page)
+            .service(post_teacher_via_form)
             .service(put_teacher_via_json_req_body)
             .service(put_teacher_via_req_path)
             // default
@@ -274,7 +288,7 @@ async fn main() -> std::io::Result<()> {
         // the number of logical CPUs in the system
         // Once the workers are created, they each receive a separate application instance to handle requests.
         // Each worker thread processes its requests sequentially.
-        .workers(8)
+        .workers(4)
         .run();
 
     server.await

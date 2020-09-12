@@ -9,11 +9,12 @@ Sample Rust actix-web webapp. Server-side rendered HTML, not a SPA.
 * actix-web App and HTTP Server set-up
 * Basic URL dispatch
 * (Asynchronous) Request handling
-* GET and PUT requests
-* Thread-safe access to global application state 
-* Type-safe access to HTTP Request information
+* GET, POST and PUT requests
+* Form submission
 * JSON serialization/deserialization using the serde and serde_json crates
-* Using middlewares (Logging, cookie based Session)
+* Type-safe access to HTTP Request information using extractors
+* Thread-safe access to shared application state 
+* Using middlewares (Logging, cookie-based Session)
 * Askama templating engine
 * ORM?
 
@@ -21,7 +22,6 @@ Sample Rust actix-web webapp. Server-side rendered HTML, not a SPA.
 
 * SSL/TLS
 * Authentication/Authorization
-* POST and HTML forms
 * Serving static files (except for favicon.ico)
 * Implementing custom middlewares
 * Using application guards to filter requests, e.g. based on HTTP headers
@@ -129,7 +129,7 @@ a HttpResponse (ie, impl actix_web::Responder trait).
 Request handling happens in two stages. First the handler object is called, returning any object that implements 
 the Responder trait. Then, respond_to() is called on the returned object, converting itself to a HttpResponse or Error.
 
-By default actix-web provides Responder implementations for some standard types, such as &'static str and String, as
+By default, actix-web provides Responder implementations for some standard types, such as &'static str and String, as
 well as for actix-web types such as NamedFile.
 
 To return your custom type directly from a handler function, the type needs to implement the Responder trait.
@@ -137,21 +137,22 @@ To return your custom type directly from a handler function, the type needs to i
 Any long, non-cpu-bound operation (e.g. I/O, database operations, etc.) should be expressed as futures or
 asynchronous functions.
 
-Request handlers are registered with the App using the route() or service() method.
+Request handlers are registered with the App using the route() and service() methods.
 
 # Type-safe access to HTTP Request information 
 
 Actix-web provides a facility for type-safe request information access called extractors (ie, impl FromRequest).
-You can define an extractor as a parameter of your request handler.
+You can define one or more extractors as parameters of your request handler.
 
 By default, actix-web provides several extractor implementations, e.g.: 
 
-* actix_web::HttpRequest - HttpRequest itself is an extractor which returns self, in case you need access to the request.
 * web::Path - Path provides information that can be extracted from the Request’s path. You can deserialize any variable segment from the path, e.g. by extracting the segments into a tuple.
-* web::Json - Allows deserialization of a request body into a struct. To extract typed information from a request’s body, the type T must implement the Deserialize trait from serde.
+* web::Form - Extract form input data from x-www-form-urlencoded requests.
+* web::Json - Allows deserialization of a JSON request body into a struct. To extract typed information from a request’s body, the type T must implement the Deserialize trait from serde.
 * web::Query - Provides extraction functionality for the request’s query parameters. Underneath it uses serde_urlencoded crate.
+* actix_web::HttpRequest - HttpRequest itself is an extractor which returns self, in case you need access to the request.
 
-Others (not used in this app): Form, String, ...
+Other extractors (not used in this app): String, bytes::Bytes, Payload
 
 # JSON Serialization/Deserialization
 
@@ -178,7 +179,9 @@ Alternatively, you can provide your own custom implementation of the Serialize t
 
 Actually serialize using:
 
-    serde_json::to_string(&MyStruct).unwrap();
+    serde_json::to_string(my_struct)
+    // or 
+    web::Json(my_struct)
 
 
 ## Deserialization
