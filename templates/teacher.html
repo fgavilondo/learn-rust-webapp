@@ -11,7 +11,17 @@
 
 <h1>Teacher</h1>
 
-<p>Current teacher is '{{ name }}'. Last time you updated it during the current session: {{ last_update }}</p>
+<p>Current teacher is '{{ name }}'.<br/>
+    Last time teacher was updated during the current session: {{ last_update }}</p>
+
+<h3>Enter new teacher</h3>
+
+<form>
+    <input type="text" name="name"/>
+    <br/>
+    <p><input type="submit"></p>
+    <!-- Submitted as /teacher GET request with 'name' query parameter, e.g. GET /teacher?name=Mary -->
+</form>
 
 <br/>
 

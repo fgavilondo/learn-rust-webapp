@@ -146,11 +146,12 @@ You can define an extractor as a parameter of your request handler.
 
 By default, actix-web provides several extractor implementations, e.g.: 
 
-* web::Path - Path provides information that can be extracted from the Request’s path. You can deserialize any variable segment from the path, e.g. by extracting the segments into a tuple.
 * actix_web::HttpRequest - HttpRequest itself is an extractor which returns self, in case you need access to the request.
+* web::Path - Path provides information that can be extracted from the Request’s path. You can deserialize any variable segment from the path, e.g. by extracting the segments into a tuple.
 * web::Json - Allows deserialization of a request body into a struct. To extract typed information from a request’s body, the type T must implement the Deserialize trait from serde.
+* web::Query - Provides extraction functionality for the request’s query parameters. Underneath it uses serde_urlencoded crate.
 
-Others (not used in this app): Query, Form, String, ...
+Others (not used in this app): Form, String, ...
 
 # JSON Serialization/Deserialization
 

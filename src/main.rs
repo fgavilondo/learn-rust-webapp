@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::sync::{Mutex, MutexGuard};
 
 use actix_files as fs;
@@ -13,6 +14,7 @@ use serde::{Deserialize, Serialize};
 
 const HOST: &str = "127.0.0.1";
 const PORT: u32 = 8088;
+const TEACHER_UPDATE_SESSION_PARAM: &str = "last_teacher_update";
 
 /// Homepage handler
 async fn get_homepage() -> Result<HttpResponse> {
@@ -84,6 +86,8 @@ impl Responder for Classroom {
 
 async fn get_classroom_json() -> impl Responder {
     Classroom { name: "5VR", capacity: 20 }
+    // Also possible, without implementing Responder:
+    // web::Json(Classroom { name: "5VR", capacity: 20 })
 }
 
 #[derive(Template)]
@@ -93,16 +97,33 @@ struct TeacherTemplate<'a> {
     last_update: &'a str,
 }
 
+fn record_teacher_update(session: &Session) {
+    let result = session.set(TEACHER_UPDATE_SESSION_PARAM, Utc::now().to_rfc3339());
+    result.unwrap();
+}
+
+fn get_last_teacher_update(session: &Session) -> String {
+    let result = session.get::<String>(TEACHER_UPDATE_SESSION_PARAM);
+    let option = result.unwrap();
+    option.unwrap_or(String::from("never"))
+}
+
 #[get("/teacher")]
-async fn get_teacher_html(session: Session, app_state: web::Data<AppState>) -> Result<HttpResponse> {
+async fn get_teacher_html(session: Session, app_state: web::Data<AppState>,
+                          query: web::Query<HashMap<String, String>>) -> Result<HttpResponse> {
     let lock_result = app_state.teacher_name.lock();
-    let teacher_name: MutexGuard<String> = lock_result.unwrap();
-    let previous_session_update: String = session.get::<String>("last_teacher_update").unwrap().unwrap_or(
-        String::from("never"));
+    let mut teacher_name: MutexGuard<String> = lock_result.unwrap();
+
+    if let Some(name_query_param) = query.get("name") {
+        // Form submission -> update app state.
+        // This is a hack, we should really use POST for this!
+        *teacher_name = name_query_param.clone();
+        record_teacher_update(&session);
+    }
 
     let html = TeacherTemplate {
         name: &teacher_name.to_string(),
-        last_update: &previous_session_update,
+        last_update: &get_last_teacher_update(&session),
     }.render().unwrap();
 
     Ok(HttpResponse::Ok().content_type("text/html").body(html))
@@ -116,9 +137,9 @@ async fn put_teacher_via_req_path(session: Session, req: HttpRequest, app_state:
     let lock_result = app_state.teacher_name.lock();
     let mut teacher_name: MutexGuard<String> = lock_result.unwrap();
     let previous_name: String = teacher_name.to_string().clone();
-    // As an alternative to Path extractor, it is also possible query the HttpRequest for path parameters by name:
+    // We can query the HttpRequest for path parameters by name:
     *teacher_name = req.match_info().get("name").unwrap().parse().unwrap();
-    session.set("last_teacher_update", Utc::now().to_rfc3339()).unwrap();
+    record_teacher_update(&session);
     HttpResponse::Ok().body(format!("Teacher changed from '{}' to '{}'", previous_name, teacher_name))
 }
 
@@ -138,7 +159,7 @@ async fn put_teacher_via_json_req_body(session: Session, json_body: web::Json<Te
     let mut teacher_name: MutexGuard<String> = lock_result.unwrap();
     let previous_name: String = teacher_name.to_string().clone();
     *teacher_name = json_body.name.clone();
-    session.set("last_teacher_update", Utc::now().to_rfc3339()).unwrap();
+    record_teacher_update(&session);
     HttpResponse::Ok().body(format!("Teacher changed from '{}' to '{}'", previous_name, teacher_name))
 }
 
