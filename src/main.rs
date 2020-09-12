@@ -83,7 +83,7 @@ async fn get_teacher_html(session: Session, app_state: web::Data<AppState>) -> i
     let previous_session_update: String = session.get::<String>("last_teacher_update").unwrap().unwrap_or(
         String::from("never"));
     HttpResponse::Ok().body(
-        format!("Current teacher is '{}'. Last time *you* updated the teacher during the current session: {}",
+        format!("Current teacher is '{}'. Last time you updated the teacher during the current session: {}",
                 teacher_name, previous_session_update))
 }
 
