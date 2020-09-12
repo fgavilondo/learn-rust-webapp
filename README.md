@@ -33,18 +33,17 @@ actix-web, part of https://actix.rs/
 
 A high level web framework providing routing, middlewares, pre-processing of requests, post-processing of responses, etc.
 
-Built atop of the actix actor framework and the Tokio async IO system. 
-
-Highly performant/concurrent.
+Built atop of the actix actor framework and the Tokio async IO system -> highly performant/concurrent.
 
 (Other popular web frameworks are rocket and gotham).
 
-# Detour: Rust async functions
+# Detour: Coroutines
 
 Async/Await is a way to write functions that can "pause", return control to the runtime, and then pick up from where they left off.
-This model is also known as "coroutines", or interleaved processing.
-
 Typically, those pauses are to wait for I/O, but there can be any number of uses.
+
+This model is also known as "coroutines", or interleaved processing.
+It allows us to implement concurrent code without worrying about threads explicitly.
 
 async functions return a Future instead of blocking the current thread, allowing other Futures to run.
 
