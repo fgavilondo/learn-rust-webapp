@@ -129,10 +129,10 @@ a HttpResponse (ie, impl actix_web::Responder trait).
 Request handling happens in two stages. First the handler object is called, returning any object that implements 
 the Responder trait. Then, respond_to() is called on the returned object, converting itself to a HttpResponse or Error.
 
-By default actix-web provides Responder implementations for some standard types, such as &'static str, String, etc. as
+By default actix-web provides Responder implementations for some standard types, such as &'static str and String, as
 well as for actix-web types such as NamedFile.
 
-To return your custom type directly from a handler function, the type needs to implement the Responder trait (see Classroom struct).
+To return your custom type directly from a handler function, the type needs to implement the Responder trait.
 
 Any long, non-cpu-bound operation (e.g. I/O, database operations, etc.) should be expressed as futures or
 asynchronous functions.

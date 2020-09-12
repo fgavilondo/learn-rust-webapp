@@ -3,12 +3,11 @@ use std::sync::{Mutex, MutexGuard};
 
 use actix_files as fs;
 use actix_session::{CookieSession, Session};
-use actix_web::{App, Error, get, HttpRequest, HttpResponse, HttpServer, put, Responder, Result, web};
+use actix_web::{App, get, HttpRequest, HttpResponse, HttpServer, put, Responder, Result, web};
 use actix_web::middleware::Logger;
 use askama::Template;
 use chrono::offset::Utc;
 use env_logger;
-use futures::future::{ready, Ready};
 use serde::{Deserialize, Serialize};
 
 const HOST: &str = "127.0.0.1";
@@ -147,25 +146,9 @@ struct Classroom {
     capacity: u32,
 }
 
-// Implement Responder trait so Classroom structs can be returned from request handlers
-impl Responder for Classroom {
-    type Error = Error;
-    type Future = Ready<Result<HttpResponse, Error>>;
-
-    fn respond_to(self, _req: &HttpRequest) -> Self::Future {
-        let json_body = serde_json::to_string(&self).unwrap();
-        let response = HttpResponse::Ok().content_type("application/json").body(json_body);
-        let result = Ok(response);
-        // create a future that is immediately ready with a value:
-        ready(result)
-    }
-}
-
-#[get("/classroom")]
-async fn get_classroom_json() -> impl Responder {
-    Classroom { name: "5VR", capacity: 20 }
-    // Also possible, without implementing Responder:
-    // web::Json(Classroom { name: "5VR", capacity: 20 })
+#[get("/classrooms")]
+async fn get_classrooms_json() -> impl Responder {
+    web::Json([Classroom { name: "5VR", capacity: 25 }, Classroom { name: "2GK", capacity: 28 }])
 }
 
 #[derive(Template)]
@@ -275,10 +258,10 @@ async fn main() -> std::io::Result<()> {
             .service(get_favicon_file)
             .service(get_students_page)
             .service(get_student_page)
-            .service(get_classroom_json)
+            .service(get_classrooms_json)
             .service(get_teacher_page)
-            .service(put_teacher_via_req_path)
             .service(put_teacher_via_json_req_body)
+            .service(put_teacher_via_req_path)
             // default
             .default_service(
                 // 404 for GET request
