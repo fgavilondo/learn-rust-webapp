@@ -10,8 +10,8 @@ Sample Rust actix-web webapp. Server-side rendered HTML, not a SPA.
 * Basic URL dispatch
 * (Asynchronous) Request handling
 * GET and PUT requests
+* Thread-safe access to global application state 
 * Type-safe access to HTTP Request information
-* Thread-safe access to (and modification of) global application state 
 * JSON serialization/deserialization using the serde and serde_json crates
 * Using middlewares (Logging, cookie based Session)
 * Askama templating engine

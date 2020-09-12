@@ -15,11 +15,23 @@ const HOST: &str = "127.0.0.1";
 const PORT: u32 = 8088;
 const TEACHER_UPDATE_SESSION_PARAM: &str = "last_teacher_update";
 
+struct Student {
+    id: u32,
+    name: String,
+}
+
+/// Shared application state type
+struct AppState {
+    // Mutex (or RwLock) is necessary to mutate safely across threads
+    teacher_name: Mutex<String>,
+    students: Mutex<Vec<Student>>,
+}
+
 #[derive(Template)] // this will generate the code...
-#[template(path = "welcome.html")] // using the template in this path, relative to the templates dir
+#[template(path = "welcome.html")] // using the askama template in this path, relative to the templates dir
 struct WelcomeTemplate<'a> {
     // the name of the struct can be anything
-    // the struct field names (if any) should match the variable names in the template
+    // the struct field names should match the variable names in the template
     title: &'a str,
 }
 
@@ -38,7 +50,6 @@ struct NotFoundTemplate<'a> {
 /// 404 handler
 async fn get_404_page(req: HttpRequest) -> Result<HttpResponse> {
     println!("Not Found: {:?}", req); // debugging
-
     let html = NotFoundTemplate { title: "Not Found" }.render().unwrap();
     Ok(HttpResponse::NotFound().content_type("text/html").body(html))
 }
@@ -58,6 +69,7 @@ struct StudentsTemplate<'a> {
     students: &'a [Student],
 }
 
+#[get("/students")]
 async fn get_students_page(app_state: web::Data<AppState>) -> Result<HttpResponse> {
     let students = app_state.students.lock().unwrap();
 
@@ -69,7 +81,8 @@ async fn get_students_page(app_state: web::Data<AppState>) -> Result<HttpRespons
     Ok(HttpResponse::Ok().content_type("text/html").body(html))
 }
 
-async fn get_student_html(req_path: web::Path<(u32, )>) -> impl Responder {
+#[get("/students/{id}")]
+async fn get_student_page(req_path: web::Path<(u32, )>) -> impl Responder {
     // Use Path extractor to extract id segment from /students/{id} into tuple
     let student_id: u32 = req_path.0;
     match student_id {
@@ -101,6 +114,7 @@ impl Responder for Classroom {
     }
 }
 
+#[get("/classroom")]
 async fn get_classroom_json() -> impl Responder {
     Classroom { name: "5VR", capacity: 20 }
     // Also possible, without implementing Responder:
@@ -183,18 +197,6 @@ async fn put_teacher_via_req_path(session: Session, req: HttpRequest, app_state:
     HttpResponse::Ok().body(format!("Teacher changed from '{}' to '{}'", previous_name, teacher_name))
 }
 
-struct Student {
-    id: u32,
-    name: String,
-}
-
-/// Shared application state type
-struct AppState {
-    // Mutex (or RwLock) is necessary to mutate safely across threads
-    teacher_name: Mutex<String>,
-    students: Mutex<Vec<Student>>,
-}
-
 // This macro marks the associated async function to be executed within the actix runtime.
 // We have to add actix-rt to our Cargo dependencies.
 #[actix_rt::main]
@@ -222,14 +224,14 @@ async fn main() -> std::io::Result<()> {
             .app_data(app_state_extractor.clone())
             // register request handlers on a path with a method
             .route("/", web::get().to(get_homepage))
-            .route("/students", web::get().to(get_students_page))
-            .route("/students/{id}", web::get().to(get_student_html))
-            .route("/classroom", web::get().to(get_classroom_json))
             // simpler registration when using macros
+            .service(get_favicon_file)
+            .service(get_students_page)
+            .service(get_student_page)
+            .service(get_classroom_json)
             .service(get_teacher_page)
             .service(put_teacher_via_req_path)
             .service(put_teacher_via_json_req_body)
-            .service(get_favicon_file)
             // default
             .default_service(
                 // 404 for GET request

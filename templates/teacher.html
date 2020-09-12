@@ -3,7 +3,7 @@
 {% block content %}
 <h1>Teacher</h1>
 
-<p>Current teacher is '{{ name }}'.<br/>
+<p>Current teacher is '{{ name|e }}'.<br/>
     Last time teacher was updated during the current session: {{ last_update }}</p>
 
 <h3>Enter new teacher</h3>
