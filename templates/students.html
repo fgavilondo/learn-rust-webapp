@@ -6,7 +6,7 @@
 <ul>
     {% for student in students %}
     <li>
-        <a href="/students/{{ loop.index }}">{{ student.name|e }}</a>
+        <a href="/students/{{ loop.index }}">{{ student.firstname|e }} {{ student.lastname|e }}</a>
     </li>
     {% endfor %}
 </ul>

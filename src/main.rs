@@ -15,9 +15,23 @@ const HOST: &str = "127.0.0.1";
 const PORT: u32 = 8088;
 const TEACHER_UPDATE_SESSION_PARAM: &str = "last_teacher_update";
 
+#[derive(Clone)]
 struct Student {
     id: u32,
-    name: String,
+    firstname: String,
+    lastname: String,
+    fav_language: String,
+}
+
+impl Student {
+    fn new(id: u32, firstname: &str, lastname: &str, fav_language: &str) -> Self {
+        Self {
+            id,
+            firstname: String::from(firstname),
+            lastname: String::from(lastname),
+            fav_language: String::from(fav_language),
+        }
+    }
 }
 
 /// Shared application state type
@@ -25,6 +39,20 @@ struct AppState {
     // Mutex (or RwLock) is necessary to mutate safely across threads
     teacher_name: Mutex<String>,
     students: Mutex<Vec<Student>>,
+}
+
+impl AppState {
+    fn find_student(&self, id: u32) -> Option<Student> {
+        let res: Option<Student>;
+        let mutex_guard = self.students.lock().unwrap();
+        for s in mutex_guard.iter() {
+            if s.id == id {
+                res = Some(s.clone());
+                return res;
+            }
+        }
+        None
+    }
 }
 
 #[derive(Template)] // this will generate the code...
@@ -81,15 +109,34 @@ async fn get_students_page(app_state: web::Data<AppState>) -> Result<HttpRespons
     Ok(HttpResponse::Ok().content_type("text/html").body(html))
 }
 
+#[derive(Template)]
+#[template(path = "student.html")]
+struct StudentTemplate<'a> {
+    title: &'a str,
+    firstname: &'a str,
+    lastname: &'a str,
+    fav_language: &'a str,
+}
+
 #[get("/students/{id}")]
-async fn get_student_page(req_path: web::Path<(u32, )>) -> impl Responder {
+async fn get_student_page(req_path: web::Path<(u32, )>, req: HttpRequest,
+                          app_state: web::Data<AppState>) -> Result<HttpResponse> {
     // Use Path extractor to extract id segment from /students/{id} into tuple
     let student_id: u32 = req_path.0;
-    match student_id {
-        1 => HttpResponse::Ok().body("Claire Lisp"),
-        2 => HttpResponse::Ok().body("David Haskell"),
-        3 => HttpResponse::Ok().body("Louise Pascal"),
-        _ => HttpResponse::NotFound().body("Unknown student ID"),
+    let student_option = app_state.find_student(student_id);
+
+    if student_option.is_none() {
+        get_404_page(req).await
+    } else {
+        let student = student_option.unwrap();
+        let html = StudentTemplate {
+            title: "Student",
+            firstname: &student.firstname,
+            lastname: &student.lastname,
+            fav_language: &student.fav_language,
+        }.render().unwrap();
+
+        Ok(HttpResponse::Ok().content_type("text/html").body(html))
     }
 }
 
@@ -141,8 +188,8 @@ fn get_last_teacher_update(session: &Session) -> String {
 }
 
 #[get("/teacher")]
-async fn get_teacher_page(session: Session, app_state: web::Data<AppState>,
-                          query: web::Query<HashMap<String, String>>) -> Result<HttpResponse> {
+async fn get_teacher_page(query: web::Query<HashMap<String, String>>, session: Session,
+                          app_state: web::Data<AppState>) -> Result<HttpResponse> {
     let lock_result = app_state.teacher_name.lock();
     let mut teacher_name: MutexGuard<String> = lock_result.unwrap();
 
@@ -173,7 +220,7 @@ struct TeacherUpdateInfo {
 /// Teacher name specified via JSON in request body (web::Json extractor).
 /// Time of update saved to session state (cookie).
 #[put("/teacher")]
-async fn put_teacher_via_json_req_body(session: Session, json_body: web::Json<TeacherUpdateInfo>,
+async fn put_teacher_via_json_req_body(json_body: web::Json<TeacherUpdateInfo>, session: Session,
                                        app_state: web::Data<AppState>) -> impl Responder {
     let lock_result = app_state.teacher_name.lock();
     let mut teacher_name: MutexGuard<String> = lock_result.unwrap();
@@ -187,7 +234,7 @@ async fn put_teacher_via_json_req_body(session: Session, json_body: web::Json<Te
 /// Teacher name specified via request path (to demonstrate using HttpRequest as an extractor).
 /// Time of update saved to session state (cookie).
 #[put("/teacher/{name}")]
-async fn put_teacher_via_req_path(session: Session, req: HttpRequest, app_state: web::Data<AppState>) -> impl Responder {
+async fn put_teacher_via_req_path(req: HttpRequest, session: Session, app_state: web::Data<AppState>) -> impl Responder {
     let lock_result = app_state.teacher_name.lock();
     let mut teacher_name: MutexGuard<String> = lock_result.unwrap();
     let previous_name: String = teacher_name.to_string().clone();
@@ -204,9 +251,9 @@ async fn main() -> std::io::Result<()> {
     // Initialize in-memory application state. Do not use in a clustered set-up!
     let app_state = AppState {
         teacher_name: Mutex::new(String::from("Mat")),
-        students: Mutex::new(vec![Student { id: 1, name: String::from("Claire") },
-                                  Student { id: 2, name: String::from("David") },
-                                  Student { id: 3, name: String::from("Lucy") }, ]),
+        students: Mutex::new(vec![Student::new(1, "Claire", "Johnston", "C++"),
+                                  Student::new(2, "David", "Johnston", "Java"),
+                                  Student::new(3, "Lucy", "Wong", "Rust")]),
     };
     let app_state_extractor = web::Data::new(app_state);
 
