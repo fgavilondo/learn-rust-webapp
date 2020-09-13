@@ -90,6 +90,11 @@ async fn get_favicon_file() -> Result<fs::NamedFile> {
     Ok(fs::NamedFile::open("static/favicon.ico")?)
 }
 
+#[get("/min.css")]
+async fn get_css_file() -> Result<fs::NamedFile> {
+    Ok(fs::NamedFile::open("static/min.css")?)
+}
+
 /// Askama template data for Students page
 #[derive(Template)]
 #[template(path = "students.html")]
@@ -260,6 +265,7 @@ async fn main() -> std::io::Result<()> {
             .route("/", web::get().to(get_homepage))
             // simpler registration when using macros
             .service(get_favicon_file)
+            .service(get_css_file)
             .service(get_students_page)
             .service(get_student_page)
             .service(post_student)
