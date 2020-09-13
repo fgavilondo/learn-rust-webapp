@@ -53,6 +53,7 @@ impl AppState {
     }
 }
 
+/// Askama template data for homepage
 #[derive(Template)] // this will generate the code...
 #[template(path = "welcome.html")] // using the askama template in this path, relative to the templates dir
 struct WelcomeTemplate<'a> {
@@ -67,6 +68,7 @@ async fn get_homepage() -> Result<HttpResponse> {
     Ok(HttpResponse::Ok().content_type("text/html").body(html))
 }
 
+/// Askama template data for 404 page
 #[derive(Template)]
 #[template(path = "404.html")]
 struct NotFoundTemplate<'a> {
@@ -88,6 +90,7 @@ async fn get_favicon_file() -> Result<fs::NamedFile> {
     Ok(fs::NamedFile::open("static/favicon.ico")?)
 }
 
+/// Askama template data for Students page
 #[derive(Template)]
 #[template(path = "students.html")]
 struct StudentsTemplate<'a> {
@@ -107,6 +110,33 @@ async fn get_students_page(app_state: web::Data<AppState>) -> Result<HttpRespons
     Ok(HttpResponse::Ok().content_type("text/html").body(html))
 }
 
+// Must implement the Deserialize trait from serde for url-encoded form deserialization.
+#[derive(Deserialize)]
+struct NewStudentFormData {
+    fname: String,
+    lname: String,
+    lang: String,
+}
+
+/// Handler to create a new student resource under /students via POST request.
+/// Gets called only if the content type is "application/x-www-form-urlencoded".
+/// and the content of the request could be deserialized to a `TeacherUpdateInfo` struct.
+#[post("/students")]
+async fn post_student(form: web::Form<NewStudentFormData>, app_state: web::Data<AppState>) -> Result<HttpResponse> {
+    let mut students = app_state.students.lock().unwrap();
+    let new_student =
+        Student::new(students.len() as u32 + 1, &form.fname, &form.lname, &form.lang);
+    students.push(new_student);
+
+    let html = StudentsTemplate {
+        title: "Students",
+        students: &students[..], // extract slice of all vector elements
+    }.render().unwrap();
+
+    Ok(HttpResponse::Ok().content_type("text/html").body(html))
+}
+
+/// Askama template data for Student page
 #[derive(Template)]
 #[template(path = "student.html")]
 struct StudentTemplate<'a> {
@@ -150,6 +180,7 @@ async fn get_classrooms_json() -> impl Responder {
     web::Json([Classroom { name: "5VR", capacity: 25 }, Classroom { name: "2GK", capacity: 28 }])
 }
 
+/// Askama template data for Teacher page
 #[derive(Template)]
 #[template(path = "teacher.html")]
 struct TeacherTemplate<'a> {
@@ -158,15 +189,8 @@ struct TeacherTemplate<'a> {
     last_update: &'a str,
 }
 
-fn record_teacher_update(session: &Session) {
-    let result = session.set(TEACHER_UPDATE_SESSION_PARAM, Utc::now().to_rfc3339());
-    result.unwrap();
-}
-
 fn get_last_teacher_update(session: &Session) -> String {
-    let result = session.get::<String>(TEACHER_UPDATE_SESSION_PARAM);
-    let option = result.unwrap();
-    option.unwrap_or(String::from("never"))
+    session.get::<String>(TEACHER_UPDATE_SESSION_PARAM).unwrap().unwrap_or(String::from("never"))
 }
 
 #[get("/teacher")]
@@ -183,33 +207,14 @@ async fn get_teacher_page(session: Session, app_state: web::Data<AppState>) -> R
     Ok(HttpResponse::Ok().content_type("text/html").body(html))
 }
 
-// Must implement the Deserialize trait from serde for url-encoded form deserialization and JSON deserialization.
+// Must implement the Deserialize trait from serde for JSON deserialization.
 #[derive(Deserialize)]
 struct TeacherUpdateInfo {
     name: String,
 }
 
-/// Handler to update the teacher name stored in global application state via POST request.
-/// Gets called only if the content type is "application/x-www-form-urlencoded".
-/// and the content of the request could be deserialized to a `TeacherUpdateInfo` struct.
-/// Time of update saved to session state (cookie).
-/// Note: POST shouldn't really be used to update a resource, but you can't PUT a HTML form,
-/// only GET it or POST it.
-#[post("/teacher")]
-async fn post_teacher_via_form(form: web::Form<TeacherUpdateInfo>, session: Session,
-                               app_state: web::Data<AppState>) -> Result<HttpResponse> {
-    let lock_result = app_state.teacher_name.lock();
-    let mut teacher_name: MutexGuard<String> = lock_result.unwrap();
-    *teacher_name = form.name.clone();
-    record_teacher_update(&session);
-
-    let html = TeacherTemplate {
-        title: "Teacher",
-        name: &teacher_name.to_string(),
-        last_update: &get_last_teacher_update(&session),
-    }.render().unwrap();
-
-    Ok(HttpResponse::Ok().content_type("text/html").body(html))
+fn record_teacher_update(session: &Session) {
+    session.set(TEACHER_UPDATE_SESSION_PARAM, Utc::now().to_rfc3339()).unwrap();
 }
 
 /// Handler to update the teacher name stored in global application state via PUT request.
@@ -257,9 +262,9 @@ async fn main() -> std::io::Result<()> {
             .service(get_favicon_file)
             .service(get_students_page)
             .service(get_student_page)
+            .service(post_student)
             .service(get_classrooms_json)
             .service(get_teacher_page)
-            .service(post_teacher_via_form)
             .service(put_teacher_via_json_req_body)
             // default
             .default_service(

@@ -11,6 +11,30 @@
     {% endfor %}
 </ul>
 
+<h3>Enter new student</h3>
+
+<form action="/students" method="post">
+    <label for="fname">First name:</label><br>
+    <input type="text" id="fname" name="fname"><br>
+
+    <br/>
+    <label for="lname">Last name:</label><br>
+    <input type="text" id="lname" name="lname">
+
+    <br/><br/>
+    <label for="lang">Favourite language:</label>
+    <select id="lang" name="lang">
+        <option value="C++">C++</option>
+        <option value="Java">Java</option>
+        <option value="Rust">Rust</option>
+        <option value="Python">Python</option>
+        <option value="Other">Other</option>
+    </select>
+
+    <br/>
+    <p><input type="submit"></p>
+</form>
+
 <br/>
 <p><a href="/">Back to home</a></p>
 {% endblock %}

@@ -6,14 +6,6 @@
 <p>Current teacher is '{{ name|e }}'.<br/>
     Last time teacher was updated by you during the current session: {{ last_update }}</p>
 
-<h3>Enter new teacher</h3>
-
-<form action="/teacher" method="post">
-    <input type="text" name="name"/>
-    <br/>
-    <p><input type="submit"></p>
-</form>
-
 <br/>
 <p><a href="/">Back to home</a></p>
 {% endblock %}
