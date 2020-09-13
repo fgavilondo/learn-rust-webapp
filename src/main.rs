@@ -226,20 +226,6 @@ async fn put_teacher_via_json_req_body(json_body: web::Json<TeacherUpdateInfo>, 
     HttpResponse::Ok().body(format!("Teacher changed from '{}' to '{}'", previous_name, teacher_name))
 }
 
-/// Handler to update the teacher name stored in global application state via PUT request.
-/// Teacher name specified via request path (just to demonstrate using the HttpRequest extractor).
-/// Time of update saved to session state (cookie).
-#[put("/teacher/{name}")]
-async fn put_teacher_via_req_path(req: HttpRequest, session: Session, app_state: web::Data<AppState>) -> impl Responder {
-    let lock_result = app_state.teacher_name.lock();
-    let mut teacher_name: MutexGuard<String> = lock_result.unwrap();
-    let previous_name: String = teacher_name.to_string().clone();
-    // We can query the HttpRequest for path parameters by name:
-    *teacher_name = req.match_info().get("name").unwrap().parse().unwrap();
-    record_teacher_update(&session);
-    HttpResponse::Ok().body(format!("Teacher changed from '{}' to '{}'", previous_name, teacher_name))
-}
-
 // This macro marks the associated async function to be executed within the actix runtime.
 // We have to add actix-rt to our Cargo dependencies.
 #[actix_rt::main]
@@ -275,7 +261,6 @@ async fn main() -> std::io::Result<()> {
             .service(get_teacher_page)
             .service(post_teacher_via_form)
             .service(put_teacher_via_json_req_body)
-            .service(put_teacher_via_req_path)
             // default
             .default_service(
                 // 404 for GET request

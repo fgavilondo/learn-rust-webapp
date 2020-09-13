@@ -150,7 +150,6 @@ By default, actix-web provides several extractor implementations, e.g.:
 * web::Form - Extract form input data from x-www-form-urlencoded requests.
 * web::Json - Allows deserialization of a JSON request body into a struct. To extract typed information from a request’s body, the type T must implement the Deserialize trait from serde.
 * web::Query - Provides extraction functionality for the request’s query parameters. Underneath it uses serde_urlencoded crate.
-* actix_web::HttpRequest - HttpRequest itself is an extractor which returns self, in case you need access to the request.
 
 Other extractors (not used in this app): String, bytes::Bytes, Payload
 
