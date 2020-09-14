@@ -24,7 +24,7 @@ Server-side rendered HTML, not an SPA.
 # Topics not covered
 
 * ORM
-* Authentication/Authorization
+* Authentication/Authorization(too many ways to do this)
 * Implementing custom middlewares
 * Using application guards to filter requests, e.g. based on HTTP headers
 * Unit/integration testing
@@ -242,8 +242,9 @@ Askama features:
 # Conclusions
 
 * Good enough for simple web sites.
+* Many libs/crates are still version 0.x (expect missing functionality, and a bug here and there).
 * Not an "opinionated" framework. There are many ways to do the same thing, including how to organise your codebase.
-Of course, this has pros and cons.
+Of course, this has pros and cons!
 * Options<> packed in Results<> packed in ... be prepared to unwrap().unwrap().unwrap() ...
 * There is no PaaS for Rust in public clouds (AWS Elastic Beanstalk, Google App Engine, Azure App Service).
 To run Rust websites in the cloud you must either use IaaS (e.g. EC2), or a containerised solution.
