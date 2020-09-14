@@ -1,3 +1,4 @@
+use std::env;
 use std::fs::File;
 use std::io::BufReader;
 use std::path::PathBuf;
@@ -263,9 +264,9 @@ fn build_ssl_server_config() -> ServerConfig {
 // We have to add actix-rt to our Cargo dependencies.
 #[actix_rt::main]
 async fn main() -> std::io::Result<()> {
-    env_logger::from_env(env_logger::Env::default().default_filter_or("info")).init();
-
-    let server_config = build_ssl_server_config();
+    // Initialize logging
+    env::set_var("RUST_LOG", "actix_web=debug,actix_server=info");
+    env_logger::init();
 
     // Initialize in-memory application state. Do not use in a clustered set-up!
     let app_state = AppState {
@@ -276,14 +277,15 @@ async fn main() -> std::io::Result<()> {
     };
     let app_state_extractor = web::Data::new(app_state);
 
+    let server_config = build_ssl_server_config();
+
     let server = HttpServer::new(move || {
         // "move closure" needed to transfer ownership of app_state value from main thread
         App::new()
-            // register logging middleware, it uses the standard log crate to log information.
-            .wrap(Logger::default())
-            .wrap(Logger::new("%a %{User-Agent}i"))
             // create cookie based session middleware, limited to 4000 bytes of data
             .wrap(CookieSession::signed(&[0; 32]).secure(false))
+            // enable logger - always register actix-web Logger middleware last
+            .wrap(Logger::default())
             // register app_state
             .app_data(app_state_extractor.clone())
             // register request handlers on a path with a method
