@@ -318,3 +318,42 @@ async fn main() -> std::io::Result<()> {
 
     server.await
 }
+
+#[cfg(test)]
+mod tests {
+    use actix_http::Response;
+    use actix_web::{http, test};
+    use actix_web::body::Body::Bytes;
+
+    use super::*;
+
+    fn get_response_body(resp: Response) -> String {
+        let response_body = match resp.body().as_ref() {
+            Some(Bytes(bytes)) => bytes,
+            _ => panic!("Response error"),
+        };
+        String::from_utf8(response_body.to_vec()).expect("Found invalid UTF-8")
+    }
+
+    #[actix_rt::test]
+    async fn test_homepage_ok() {
+        let resp: Response = get_homepage().await.unwrap();
+        assert_eq!(resp.status(), http::StatusCode::OK);
+
+        let body = get_response_body(resp);
+        assert!(body.contains("Welcome!"));
+        assert!(body.contains("students"));
+        assert!(body.contains("teacher"));
+        assert!(body.contains("classrooms"));
+    }
+
+    #[actix_rt::test]
+    async fn test_404_ok() {
+        let req = test::TestRequest::get().to_http_request();
+        let resp = get_404_page(req).await.unwrap();
+        assert_eq!(resp.status(), http::StatusCode::NOT_FOUND);
+
+        let body = get_response_body(resp);
+        assert!(body.contains("Back to home"));
+    }
+}

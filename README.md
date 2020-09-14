@@ -20,14 +20,16 @@ Server-side rendered HTML, not an SPA.
 * Using middlewares (Logging, cookie-based Session)
 * Serving static files
 * SSL/TLS
+* Unit testing
 
 # Topics not covered
 
+* Integration testing
 * ORM
 * Authentication/Authorization(too many ways to do this)
 * Implementing custom middlewares
+* Modular app configuration
 * Using application guards to filter requests, e.g. based on HTTP headers
-* Unit/integration testing
 
 # Web framework
 
