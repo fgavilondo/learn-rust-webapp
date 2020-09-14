@@ -17,11 +17,11 @@ Simple Rust actix-web webapp. Server-side rendered HTML, not an SPA.
 * Using middlewares (Logging, cookie-based Session)
 * Askama templating engine
 * Serving static files
+* SSL/TLS
 * ORM?
 
 # Topics not covered
 
-* SSL/TLS
 * Authentication/Authorization
 * Implementing custom middlewares
 * Using application guards to filter requests, e.g. based on HTTP headers

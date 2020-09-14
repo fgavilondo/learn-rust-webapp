@@ -1,3 +1,5 @@
+use std::fs::File;
+use std::io::BufReader;
 use std::path::PathBuf;
 use std::sync::{Mutex, MutexGuard};
 
@@ -8,10 +10,14 @@ use actix_web::middleware::Logger;
 use askama::Template;
 use chrono::offset::Utc;
 use env_logger;
+use rustls::{NoClientAuth, ServerConfig};
+use rustls::internal::pemfile::{certs, rsa_private_keys};
 use serde::{Deserialize, Serialize};
 
 const HOST: &str = "127.0.0.1";
-const PORT: u32 = 8088;
+// const PORT: u32 = 8088;
+// use different port for HTTPS
+const PORT: u32 = 8443;
 const TEACHER_UPDATE_SESSION_PARAM: &str = "last_teacher_update";
 
 #[derive(Clone)]
@@ -147,11 +153,11 @@ struct StudentTemplate<'a> {
     fav_language: &'a str,
 }
 
+/// Use Path extractor to extract id segment from /students/{id} into tuple
 #[get("/students/{id}")]
-async fn get_student_page(req_path: web::Path<(u32, )>, req: HttpRequest,
+async fn get_student_page(web::Path((student_id, )): web::Path<(u32, )>,
+                          req: HttpRequest,
                           app_state: web::Data<AppState>) -> Result<HttpResponse> {
-    // Use Path extractor to extract id segment from /students/{id} into tuple
-    let student_id: u32 = req_path.0;
     let student_option = app_state.find_student(student_id);
 
     if student_option.is_none() {
@@ -242,10 +248,24 @@ async fn serve_static_file(req: HttpRequest) -> Result<NamedFile> {
     Ok(file.use_etag(true).use_last_modified(true))
 }
 
+fn build_ssl_server_config() -> ServerConfig {
+    let mut server_config = ServerConfig::new(NoClientAuth::new());
+    let cert_file = &mut BufReader::new(File::open("cert.pem").unwrap());
+    let key_file = &mut BufReader::new(File::open("key.pem").unwrap());
+    let cert_chain = certs(cert_file).unwrap();
+    let mut keys = rsa_private_keys(key_file).unwrap();
+    server_config.set_single_cert(cert_chain, keys.remove(0)).unwrap();
+    server_config
+}
+
 // This macro marks the associated async function to be executed within the actix runtime.
 // We have to add actix-rt to our Cargo dependencies.
 #[actix_rt::main]
 async fn main() -> std::io::Result<()> {
+    env_logger::from_env(env_logger::Env::default().default_filter_or("info")).init();
+
+    let server_config = build_ssl_server_config();
+
     // Initialize in-memory application state. Do not use in a clustered set-up!
     let app_state = AppState {
         teacher_name: Mutex::new(String::from("Mat")),
@@ -254,8 +274,6 @@ async fn main() -> std::io::Result<()> {
                                   Student::new(3, "Lucy", "Wong", "Rust")]),
     };
     let app_state_extractor = web::Data::new(app_state);
-
-    env_logger::from_env(env_logger::Env::default().default_filter_or("info")).init();
 
     let server = HttpServer::new(move || {
         // "move closure" needed to transfer ownership of app_state value from main thread
@@ -284,10 +302,12 @@ async fn main() -> std::io::Result<()> {
                 web::resource("").route(web::get().to(get_404_page)),
             )
     })
+        // bind plain socket
+        // .bind(format!("{}:{}", HOST, PORT))?
         // to bind ssl socket, bind_openssl() or bind_rustls() should be used.
-        .bind(format!("{}:{}", HOST, PORT))?
+        .bind_rustls(format!("{}:{}", HOST, PORT), server_config)?
         // HttpServer automatically starts a number of http workers, by default this number is equal to
-        // the number of logical CPUs in the system
+        // the number of logical CPUs in the system.
         // Once the workers are created, they each receive a separate application instance to handle requests.
         // Each worker thread processes its requests sequentially.
         .workers(4)
