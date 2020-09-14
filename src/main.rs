@@ -1,6 +1,7 @@
+use std::path::PathBuf;
 use std::sync::{Mutex, MutexGuard};
 
-use actix_files as fs;
+use actix_files::NamedFile;
 use actix_session::{CookieSession, Session};
 use actix_web::{App, get, HttpRequest, HttpResponse, HttpServer, post, put, Responder, Result, web};
 use actix_web::middleware::Logger;
@@ -86,13 +87,8 @@ async fn get_404_page(req: HttpRequest) -> Result<HttpResponse> {
 /// You can also define routes using macro attributes which allow you to specify the routes above
 /// your functions like so:
 #[get("/favicon")]
-async fn get_favicon_file() -> Result<fs::NamedFile> {
-    Ok(fs::NamedFile::open("static/favicon.ico")?)
-}
-
-#[get("/min.css")]
-async fn get_css_file() -> Result<fs::NamedFile> {
-    Ok(fs::NamedFile::open("static/min.css")?)
+async fn get_favicon_file() -> Result<NamedFile> {
+    Ok(NamedFile::open("static/favicon.ico")?)
 }
 
 /// Askama template data for Students page
@@ -236,6 +232,16 @@ async fn put_teacher_via_json_req_body(json_body: web::Json<TeacherUpdateInfo>, 
     HttpResponse::Ok().body(format!("Teacher changed from '{}' to '{}'", previous_name, teacher_name))
 }
 
+/// Handler for serving named files out of the /static directory
+#[get("/static/{filename:.*}")]
+async fn serve_static_file(req: HttpRequest) -> Result<NamedFile> {
+    let filename: std::path::PathBuf = req.match_info().query("filename").parse().unwrap();
+    let mut path = PathBuf::from("static/");
+    path.push(filename);
+    let file = NamedFile::open(path)?;
+    Ok(file.use_etag(true).use_last_modified(true))
+}
+
 // This macro marks the associated async function to be executed within the actix runtime.
 // We have to add actix-rt to our Cargo dependencies.
 #[actix_rt::main]
@@ -265,13 +271,13 @@ async fn main() -> std::io::Result<()> {
             .route("/", web::get().to(get_homepage))
             // simpler registration when using macros
             .service(get_favicon_file)
-            .service(get_css_file)
             .service(get_students_page)
             .service(get_student_page)
             .service(post_student)
             .service(get_classrooms_json)
             .service(get_teacher_page)
             .service(put_teacher_via_json_req_body)
+            .service(serve_static_file)
             // default
             .default_service(
                 // 404 for GET request

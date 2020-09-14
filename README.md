@@ -16,13 +16,13 @@ Simple Rust actix-web webapp. Server-side rendered HTML, not an SPA.
 * Thread-safe access to shared application state 
 * Using middlewares (Logging, cookie-based Session)
 * Askama templating engine
+* Serving static files
 * ORM?
 
 # Topics not covered
 
 * SSL/TLS
 * Authentication/Authorization
-* Serving static files (except for favicon.ico)
 * Implementing custom middlewares
 * Using application guards to filter requests, e.g. based on HTTP headers
 * Unit/integration testing
