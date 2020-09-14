@@ -1,27 +1,29 @@
 # learn-rust-webapp
 
-Simple Rust actix-web webapp. Server-side rendered HTML, not an SPA.
+Sample (and simple) Rust webapp using the actix-web framework. 
+
+Server-side rendered HTML, not an SPA.
 
     git clone https://github.com/fgavilondo/learn-rust-webapp.git
 
 # Topics covered
 
-* actix-web App and HTTP Server set-up
+* App and HTTP Server set-up
 * Basic URL dispatch
 * (Asynchronous) Request handling
+* Askama templating engine
 * GET, POST and PUT requests
 * Form submission
-* JSON serialization/deserialization using the serde and serde_json crates
 * Type-safe access to HTTP Request information using extractors
 * Thread-safe access to shared application state 
+* JSON serialization/deserialization using serde
 * Using middlewares (Logging, cookie-based Session)
-* Askama templating engine
 * Serving static files
 * SSL/TLS
-* ORM?
 
 # Topics not covered
 
+* ORM
 * Authentication/Authorization
 * Implementing custom middlewares
 * Using application guards to filter requests, e.g. based on HTTP headers
@@ -224,7 +226,7 @@ It generates Rust code from your templates at compile time based on a user-defin
 * [Yarte](https://crates.io/crates/yarte)-  Yarte stands for Yet Another Rust Template Engine. It uses a Handlebars-like syntax.
 * [TinyTemplate](https://crates.io/crates/tinytemplate) - a small, minimalistic text templating system with limited dependencies.
 
-I picked Askama because I've used Jinja with Python before. Fast (compiled). Drawback: must restart app if HTML changes.
+Picked Askama because of familiarity with Jinja. Simple and fast (compiled). Drawback: must restart app if HTML changes.
 
 Askama features:
 
@@ -237,21 +239,14 @@ Askama features:
 * Opt-out HTML escaping
 * Syntax customization
 
-# DB driver
-
-??
-
-# ORM
-
-?? 
-
 # Conclusions
 
 * Good enough for simple web sites.
-* Not an "opinionated" framework, must do many things "by hand". This has pros and cons.
-* Options packed in Results packed in ... be prepared to unwrap().unwrap().unwrap() ...
-* There is no PaaS for Rust, e.g. no Elastic Beanstalk. To run Rust websites in the cloud you must use IaaS (eg EC2),
-or a containerised solution.
+* Not an "opinionated" framework. there are many ways to do the same thing, including how to organise your codebase.
+Of course, this has pros and cons.
+* Options<> packed in Results<> packed in ... be prepared to unwrap().unwrap().unwrap() ...
+* There is no PaaS for Rust in public clouds (Elastic Beanstalk, Google App Engine, Azure App Service).
+To run Rust websites in the cloud you must either use IaaS (e.g. EC2), or a containerised solution.
 
 # Resources
 
