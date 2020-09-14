@@ -242,12 +242,12 @@ Askama features:
 # Conclusions
 
 * Good enough for simple web sites.
-* Many libs/crates are still version 0.x (expect missing functionality, and a bug here and there).
+* Many libs/crates are still version 0.x (immature APIs, possible bugs). Expect breaking changes between versions.
 * Not an "opinionated" framework. There are many ways to do the same thing, including how to organise your codebase.
-Of course, this has pros and cons!
-* Options<> packed in Results<> packed in ... be prepared to unwrap().unwrap().unwrap() ...
-* There is no PaaS for Rust in public clouds (AWS Elastic Beanstalk, Google App Engine, Azure App Service).
-To run Rust websites in the cloud you must either use IaaS (e.g. EC2), or a containerised solution.
+This can be good or bad, depending on how you look at it.
+* Many Options<> packed in Results<> packed in ... Be prepared to unwrap().unwrap().unwrap() ...
+* There is no PaaS option for Rust in public clouds (AWS Elastic Beanstalk, Google App Engine, Azure App Service).
+To run Rust websites in the cloud you must either use IaaS (e.g. EC2), or containers.
 
 # Resources
 
