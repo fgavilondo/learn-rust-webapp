@@ -18,7 +18,7 @@ const HOST: &str = "127.0.0.1";
 // const PORT: u32 = 8088;
 // use different port for HTTPS
 const PORT: u32 = 8443;
-const TEACHER_UPDATE_SESSION_PARAM: &str = "last_teacher_update";
+const LAST_STUDENT_POST_SESSION_PARAM: &str = "last_student_post";
 
 #[derive(Clone)]
 struct Student {
@@ -97,21 +97,31 @@ async fn get_favicon_file() -> Result<NamedFile> {
     Ok(NamedFile::open("static/favicon.ico")?)
 }
 
+fn get_last_student_post_time(session: &Session) -> String {
+    session.get::<String>(LAST_STUDENT_POST_SESSION_PARAM).unwrap().unwrap_or(String::from("never"))
+}
+
+fn record_student_post_time(session: &Session) {
+    session.set(LAST_STUDENT_POST_SESSION_PARAM, Utc::now().to_rfc3339()).unwrap();
+}
+
 /// Askama template data for Students page
 #[derive(Template)]
 #[template(path = "students.html")]
 struct StudentsTemplate<'a> {
     title: &'a str,
     students: &'a [Student],
+    last_post: &'a str,
 }
 
 #[get("/students")]
-async fn get_students_page(app_state: web::Data<AppState>) -> Result<HttpResponse> {
+async fn get_students_page(session: Session, app_state: web::Data<AppState>) -> Result<HttpResponse> {
     let students = app_state.students.lock().unwrap();
 
     let html = StudentsTemplate {
         title: "Students",
         students: &students[..], // extract slice of all vector elements
+        last_post: &get_last_student_post_time(&session),
     }.render().unwrap();
 
     Ok(HttpResponse::Ok().content_type("text/html").body(html))
@@ -128,16 +138,21 @@ struct NewStudentFormData {
 /// Handler to create a new student resource under /students via POST request.
 /// Gets called only if the content type is "application/x-www-form-urlencoded".
 /// and the content of the request could be deserialized to a `TeacherUpdateInfo` struct.
+/// Timestamp of last POST saved to session state (cookie).
 #[post("/students")]
-async fn post_student(form: web::Form<NewStudentFormData>, app_state: web::Data<AppState>) -> Result<HttpResponse> {
+async fn post_student(form: web::Form<NewStudentFormData>, session: Session,
+                      app_state: web::Data<AppState>) -> Result<HttpResponse> {
     let mut students = app_state.students.lock().unwrap();
     let new_student =
         Student::new(students.len() as u32 + 1, &form.fname, &form.lname, &form.lang);
     students.push(new_student);
 
+    record_student_post_time(&session);
+
     let html = StudentsTemplate {
         title: "Students",
         students: &students[..], // extract slice of all vector elements
+        last_post: &get_last_student_post_time(&session),
     }.render().unwrap();
 
     Ok(HttpResponse::Ok().content_type("text/html").body(html))
@@ -193,22 +208,15 @@ async fn get_classrooms_json() -> impl Responder {
 struct TeacherTemplate<'a> {
     title: &'a str,
     name: &'a str,
-    last_update: &'a str,
-}
-
-fn get_last_teacher_update(session: &Session) -> String {
-    session.get::<String>(TEACHER_UPDATE_SESSION_PARAM).unwrap().unwrap_or(String::from("never"))
 }
 
 #[get("/teacher")]
-async fn get_teacher_page(session: Session, app_state: web::Data<AppState>) -> Result<HttpResponse> {
-    let lock_result = app_state.teacher_name.lock();
-    let teacher_name: MutexGuard<String> = lock_result.unwrap();
+async fn get_teacher_page(app_state: web::Data<AppState>) -> Result<HttpResponse> {
+    let teacher_name: MutexGuard<String> = app_state.teacher_name.lock().unwrap();
 
     let html = TeacherTemplate {
         title: "Teacher",
         name: &teacher_name.to_string(),
-        last_update: &get_last_teacher_update(&session),
     }.render().unwrap();
 
     Ok(HttpResponse::Ok().content_type("text/html").body(html))
@@ -220,21 +228,14 @@ struct TeacherUpdateInfo {
     name: String,
 }
 
-fn record_teacher_update(session: &Session) {
-    session.set(TEACHER_UPDATE_SESSION_PARAM, Utc::now().to_rfc3339()).unwrap();
-}
-
 /// Handler to update the teacher name stored in global application state via PUT request.
 /// Teacher name specified via JSON in request body (web::Json extractor).
-/// Time of update saved to session state (cookie).
 #[put("/teacher")]
-async fn put_teacher_via_json_req_body(json_body: web::Json<TeacherUpdateInfo>, session: Session,
+async fn put_teacher_via_json_req_body(json_body: web::Json<TeacherUpdateInfo>,
                                        app_state: web::Data<AppState>) -> impl Responder {
-    let lock_result = app_state.teacher_name.lock();
-    let mut teacher_name: MutexGuard<String> = lock_result.unwrap();
+    let mut teacher_name: MutexGuard<String> = app_state.teacher_name.lock().unwrap();
     let previous_name: String = teacher_name.to_string().clone();
     *teacher_name = json_body.name.clone();
-    record_teacher_update(&session);
     HttpResponse::Ok().body(format!("Teacher changed from '{}' to '{}'", previous_name, teacher_name))
 }
 
