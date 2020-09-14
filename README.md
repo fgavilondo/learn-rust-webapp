@@ -1,6 +1,6 @@
 # learn-rust-webapp
 
-Simple Rust actix-web webapp. Server-side rendered HTML, not a SPA.
+Simple Rust actix-web webapp. Server-side rendered HTML, not an SPA.
 
     git clone https://github.com/fgavilondo/learn-rust-webapp.git
 
@@ -167,7 +167,7 @@ Serde provides a 'derive' macro to generate a simple, 1:1 serialization implemen
       // ...
     }
 
-Alternatively, you can provide your own custom implementation of the Serialize trait:
+Alternatively, you can provide your own custom implementation of the 'Serialize' trait:
 
     impl Serialize for MyStruct {
         fn serialize<S>(&self, serializer: S) -> Result<<S as Serializer>::Ok, <S as Serializer>::Error> where
@@ -204,7 +204,7 @@ Shared references in Rust disallow mutation by default, and Arc is no exception.
 
 # Session state
 
-The actix-session middleware can be used with different backend types to store session data in different backends.
+The actix-session middleware can be used with different backend types to store session data in.
 
 By default, only cookie session backend is implemented. Other backend implementations can be added.
 
@@ -217,12 +217,12 @@ To access session data the actix_session::Session extractor must be used.
 
 Multiple options:
 
-* [Askama](https://crates.io/crates/askama): a template rendering engine based on [Jinja](https://palletsprojects.com/p/jinja/).
+* [Askama](https://crates.io/crates/askama) - a template rendering engine based on [Jinja](https://palletsprojects.com/p/jinja/).
 It generates Rust code from your templates at compile time based on a user-defined struct to hold the template's context.
-* [Handlebars](https://crates.io/crates/handlebars): [Handlebars templating language](https://handlebarsjs.com/) implemented in Rust.
-* [Tera](https://crates.io/crates/tera): a template engine inspired by Jinja2 and the Django template language.
-* [Yarte](https://crates.io/crates/yarte): Yarte stands for Yet Another Rust Template Engine. It uses a Handlebars-like syntax.
-* [TinyTemplate](https://crates.io/crates/tinytemplate): a small, minimalistic text templating system with limited dependencies.
+* [Handlebars](https://crates.io/crates/handlebars) - [Handlebars templating language](https://handlebarsjs.com/) implemented in Rust.
+* [Tera](https://crates.io/crates/tera) - a template engine inspired by Jinja2 and the Django template language.
+* [Yarte](https://crates.io/crates/yarte)-  Yarte stands for Yet Another Rust Template Engine. It uses a Handlebars-like syntax.
+* [TinyTemplate](https://crates.io/crates/tinytemplate) - a small, minimalistic text templating system with limited dependencies.
 
 I picked Askama because I've used Jinja with Python before. Fast (compiled). Drawback: must restart app if HTML changes.
 
