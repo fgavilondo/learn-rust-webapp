@@ -24,14 +24,14 @@ Server-side rendered HTML, not an SPA.
 
 # Topics not covered
 
-* Authentication/Authorization (too many ways to go about it). Cookie-based example: https://github.com/actix/examples/tree/master/simple-auth-server
+* Authentication/Authorization (too many ways to go about it).
 * Modular app configuration
 * Using 'application guards' to filter requests, e.g. based on HTTP headers
 * Custom middlewares
 * Custom error responses (convert app errors to HttpResponse errors) 
-* File upload
+* (Multipart) file upload
 * GraphQL (use 'juniper' crate)
-* ORM (Diesel)
+* ORM
 
 # Web framework
 
