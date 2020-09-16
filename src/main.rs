@@ -233,11 +233,12 @@ struct TeacherUpdateInfo {
 /// Teacher name specified via JSON in request body (web::Json extractor).
 #[put("/teacher")]
 async fn put_teacher_via_json_req_body(json_body: web::Json<TeacherUpdateInfo>,
-                                       app_state: web::Data<AppState>) -> impl Responder {
+                                       app_state: web::Data<AppState>) -> Result<HttpResponse> {
     let mut teacher_name: MutexGuard<String> = app_state.teacher_name.lock().unwrap();
     let previous_name: String = teacher_name.to_string().clone();
     *teacher_name = json_body.name.clone();
-    HttpResponse::Ok().body(format!("Teacher changed from '{}' to '{}'", previous_name, teacher_name))
+    let resp_body: String = format!("Teacher changed from '{}' to '{}'", previous_name, teacher_name);
+    Ok(HttpResponse::Ok().content_type("text/plain").body(resp_body))
 }
 
 /// Handler for serving named files out of the /static directory
@@ -270,10 +271,10 @@ async fn main() -> std::io::Result<()> {
 
     // Initialize in-memory application state. Do not use in a clustered set-up!
     let app_state = AppState {
-        teacher_name: Mutex::new(String::from("Mat")),
+        teacher_name: Mutex::new(String::from("Louise")),
         students: Mutex::new(vec![Student::new(1, "Claire", "Johnston", "C++"),
                                   Student::new(2, "David", "Johnston", "Java"),
-                                  Student::new(3, "Lucy", "Wong", "Rust")]),
+                                  Student::new(3, "Mark", "Wong", "Rust")]),
     };
     let app_state_extractor = web::Data::new(app_state);
 
@@ -321,39 +322,68 @@ async fn main() -> std::io::Result<()> {
 
 #[cfg(test)]
 mod tests {
-    use actix_http::Response;
+    use actix_http::{Request, Response};
     use actix_web::{http, test};
     use actix_web::body::Body::Bytes;
 
     use super::*;
 
-    fn get_response_body(resp: Response) -> String {
-        let response_body = match resp.body().as_ref() {
-            Some(Bytes(bytes)) => bytes,
-            _ => panic!("Response error"),
-        };
-        String::from_utf8(response_body.to_vec()).expect("Found invalid UTF-8")
-    }
-
+    // Unit tests (test individual request handler functions)
     #[actix_rt::test]
-    async fn test_homepage_ok() {
+    async fn unit_test_homepage_contents() {
         let resp: Response = get_homepage().await.unwrap();
         assert_eq!(resp.status(), http::StatusCode::OK);
 
-        let body = get_response_body(resp);
+        let body: String = get_response_body(&resp);
         assert!(body.contains("Welcome!"));
         assert!(body.contains("students"));
         assert!(body.contains("teacher"));
         assert!(body.contains("classrooms"));
     }
 
+    fn get_response_body(resp: &Response) -> String {
+        let response_body = match resp.body().as_ref() {
+            Some(Bytes(bytes)) => bytes,
+            _ => panic!("Response error"),
+        };
+        String::from_utf8(response_body.to_vec()).expect("Invalid UTF-8")
+    }
+
     #[actix_rt::test]
-    async fn test_404_ok() {
-        let req = test::TestRequest::get().to_http_request();
-        let resp = get_404_page(req).await.unwrap();
+    async fn unit_test_404() {
+        let req: HttpRequest = test::TestRequest::with_uri("/wrongpage").to_http_request();
+        let resp: Response = get_404_page(req).await.unwrap();
         assert_eq!(resp.status(), http::StatusCode::NOT_FOUND);
 
-        let body = get_response_body(resp);
+        let body: String = get_response_body(&resp);
         assert!(body.contains("Back to home"));
+    }
+
+    // Integration tests (run the application with specific request handlers in a real HTTP server)
+
+    #[actix_rt::test]
+    async fn integration_can_get_homepage() {
+        let mut app =
+            test::init_service(App::new().route("/", web::get().to(get_homepage))).await;
+        let req: Request = test::TestRequest::with_header("content-type", "text/html").to_request();
+
+        let service_resp = test::call_service(&mut app, req).await;
+        assert!(service_resp.status().is_success());
+
+        let resp: &Response = service_resp.response();
+        assert_eq!(resp.status(), http::StatusCode::OK);
+
+        let body: String = get_response_body(resp);
+        assert!(body.contains("Welcome!"));
+    }
+
+    #[actix_rt::test]
+    async fn integration_cannot_post_homepage() {
+        let mut app =
+            test::init_service(App::new().route("/", web::get().to(get_homepage))).await;
+        let req: Request = test::TestRequest::post().uri("/").to_request();
+
+        let service_resp = test::call_service(&mut app, req).await;
+        assert!(service_resp.status().is_client_error());
     }
 }

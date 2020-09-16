@@ -10,46 +10,48 @@ Server-side rendered HTML, not an SPA.
 
 * App and HTTP Server set-up
 * Basic URL dispatch
-* (Asynchronous) Request handling
-* Askama templating engine
 * GET, POST and PUT requests
-* Form submission
+* Request handling
 * Type-safe access to HTTP Request information using extractors
 * Thread-safe access to shared application state 
+* Askama templating engine
 * JSON serialization/deserialization using serde
+* Form submission
 * Using middlewares (Logging, cookie-based Session)
 * Serving static files
 * SSL/TLS
-* Unit testing
+* Unit/integration testing
 
 # Topics not covered
 
-* Integration testing
 * ORM
-* Authentication/Authorization(too many ways to do this)
+* Authentication/Authorization(too many ways to go about it)
 * Implementing custom middlewares
 * Modular app configuration
 * Using application guards to filter requests, e.g. based on HTTP headers
 
 # Web framework
 
-actix-web, part of https://actix.rs/
+actix-web: A high level web framework providing routing, middlewares, pre-processing of requests, post-processing of responses, etc.
 
-A high level web framework providing routing, middlewares, pre-processing of requests, post-processing of responses, etc.
+Built atop of the actix actor framework and the Tokio async IO system
 
-Built atop of the actix actor framework and the Tokio async IO system -> highly performant/concurrent.
+Strongly typed. High performance/concurrency.
 
-(Other popular web frameworks are rocket and gotham).
+Other popular Rust web frameworks are rocket and gotham.
 
 # Detour: Coroutines
+
+Most actix-web request handlers are implemented as async functions.
 
 Async/Await is a way to write functions that can "pause", return control to the runtime, and then pick up from where they left off.
 Typically, those pauses are to wait for I/O, but there can be any number of uses.
 
-This model is also known as "coroutines", or interleaved processing. It is an example of non-preemptive multitasking.
-It allows writing asynchronous, non-blocking code with minimal overhead, and looking almost like traditional synchronous, blocking code. 
-
 async functions return a Future object that can be used to block and wait for the operation to complete at some other convenient time.
+
+This model is also known as "coroutines", or interleaved processing. It is an example of non-preemptive multitasking.
+
+It allows writing asynchronous, non-blocking code with minimal overhead, and looking almost like traditional synchronous, blocking code. 
  
 Example:
 
@@ -73,14 +75,14 @@ Example:
     }
     
     async fn print_one_two_three_maybe() {
-        let f1 = print_one_two();  // nothing printed, returns a future
-        let f2 = print_three();    // nothing printed, returns a future
+        let f12 = print_one_two();  // nothing printed, returns a future
+        let f3 = print_three();    // nothing printed, returns a future
     
         // `join!` is like `.await` but can wait for multiple futures concurrently.
         // If we're temporarily blocked in one future, another
         // future will take over the current thread. If both futures are blocked, then
         // this function is blocked and will yield to the executor.
-        futures::join!(f1, f2);
+        futures::join!(f12, f3);
     }
     
     fn main() {
@@ -88,11 +90,9 @@ Example:
         block_on(print_one_two_three_maybe());
     }
 
-Most actix-web request handlers are implemented as async functions.
-
 See https://rust-lang.github.io/async-book/ for more information.
 
-Languages with async/await syntax: Rust, C#, Kotlin, JavaScript, Python
+Languages with async/await syntax: Rust, C#, JavaScript, Python, Kotlin
 Notable exceptions: Java, Go (goroutines)
 
 # actix_web::HttpServer
@@ -157,47 +157,6 @@ By default, actix-web provides several extractor implementations, e.g.:
 
 Other extractors (not used in this app): String, bytes::Bytes, Payload
 
-# JSON Serialization/Deserialization
-
-* https://crates.io/crates/serde
-* https://crates.io/crates/serde_json
-
-## Serialization
-
-Serde provides a 'derive' macro to generate a simple, 1:1 serialization implementation for structs in your own program:
-
-    #[derive(Serialize)]
-    struct MyStruct {
-      // ...
-    }
-
-Alternatively, you can provide your own custom implementation of the 'Serialize' trait:
-
-    impl Serialize for MyStruct {
-        fn serialize<S>(&self, serializer: S) -> Result<<S as Serializer>::Ok, <S as Serializer>::Error> where
-            S: Serializer {
-            // ... here you could do all sorts of fancy stuff, e.g. combine fields 
-        }
-    }
-
-Actually serialize using:
-
-    serde_json::to_string(my_struct)
-    // or 
-    web::Json(my_struct)
-
-
-## Deserialization
-
-Use the provided 'derive' macro to make your structs deserializable:
-
-    #[derive(Deserialize)]
-    struct MyStruct {
-        // ...
-    }
-
-... and use the web::Json extractor to deserialize them from the HTTP request.
-
 # In-memory application state
 
 Application state (usually a struct) is registered with the App when server is initialised. It can be accessed in your request handlers with the web::Data<T> extractor where T is type of state.
@@ -241,18 +200,60 @@ Askama features:
 * Opt-out HTML escaping
 * Syntax customization
 
+# JSON Serialization/Deserialization
+
+* https://crates.io/crates/serde
+* https://crates.io/crates/serde_json
+
+## Serialization
+
+Serde provides a 'derive' macro to generate a simple, 1:1 serialization implementation for structs in your own program:
+
+    #[derive(Serialize)]
+    struct MyStruct {
+      // ...
+    }
+
+Alternatively, you can provide your own custom implementation of the 'Serialize' trait:
+
+    impl Serialize for MyStruct {
+        fn serialize<S>(&self, serializer: S) -> Result<<S as Serializer>::Ok, <S as Serializer>::Error> where
+            S: Serializer {
+            // ... here you could do all sorts of fancy stuff, e.g. combine fields 
+        }
+    }
+
+Actually serialize using:
+
+    serde_json::to_string(my_struct)
+    // or 
+    web::Json(my_struct)
+
+
+## Deserialization
+
+Use the provided 'derive' macro to make your structs deserializable:
+
+    #[derive(Deserialize)]
+    struct MyStruct {
+        // ...
+    }
+
+... and use the web::Json extractor to deserialize them from the HTTP request.
+
 # Conclusions
 
-* Good enough for simple web sites.
-* Many libs/crates are still version 0.x (immature APIs, possible bugs). Expect breaking changes between versions.
+* actix-web is good enough for simple web sites.
+* Many libs/crates are still version 0.x - immature APIs, possible bugs. Expect breaking changes between versions.
+* Quality of documentation for some crates is patchy.
 * Not an "opinionated" framework. There are many ways to do the same thing, including how to organise your codebase.
 This can be good or bad, depending on how you look at it.
-* Many Options<> packed in Results<> packed in ... Be prepared to unwrap().unwrap().unwrap() ...
-* There is no PaaS option for Rust in public clouds (AWS Elastic Beanstalk, Google App Engine, Azure App Service).
-To run Rust websites in the cloud you must either use IaaS (e.g. EC2), or containers.
+* Options<> packed in Results<> packed in ... Be prepared to unwrap().unwrap().unwrap()
+* Rust not supported by public cloud PaaS (AWS Elastic Beanstalk, Google App Engine, Azure App Service).
+To run Rust websites in the cloud you must use IaaS or containers.
 
 # Resources
 
 * https://www.arewewebyet.org/
-* https://actix.rs/docs/installation/
+* https://actix.rs/
 * https://github.com/actix/examples
