@@ -1,6 +1,6 @@
 # learn-rust-webapp
 
-Sample (and simple) Rust webapp using the actix-web framework. 
+Demo Rust webapp that uses the actix-web framework. 
 
 Server-side rendered HTML, not an SPA.
 
@@ -96,8 +96,8 @@ Example:
 
 See https://rust-lang.github.io/async-book/ for more information.
 
-Languages with async/await syntax: Rust, C#, JavaScript, Python, Kotlin
-Notable exceptions: Java, Go (goroutines)
+Languages with async/await syntax: Rust, C#, JavaScript, Python, Kotlin.
+Notable exceptions: Java, Go (goroutines are similar, but not quite the same).
 
 # actix_web::HttpServer
 
