@@ -11,6 +11,8 @@ use actix_web::middleware::Logger;
 use askama::Template;
 use chrono::offset::Utc;
 use env_logger;
+use r2d2::Pool;
+use r2d2_sqlite::SqliteConnectionManager;
 use rustls::{NoClientAuth, ServerConfig};
 use rustls::internal::pemfile::{certs, rsa_private_keys};
 use serde::{Deserialize, Serialize};
@@ -203,6 +205,24 @@ async fn get_classrooms_json() -> impl Responder {
     web::Json([Classroom { name: "5VR", capacity: 25 }, Classroom { name: "2GK", capacity: 28 }])
 }
 
+#[get("/classroomsdb")]
+async fn get_classrooms_from_db(db: web::Data<Pool<SqliteConnectionManager>>) -> Result<HttpResponse> {
+    // execute sync code in thread pool
+    // let res = web::block(move || {
+    //     let conn = db.get().unwrap();
+    //
+    //     conn.query_row("SELECT name, capacity FROM classroom WHERE status=$1", &["active"], |row| {
+    //         row.get::<_, String, String>(0)
+    //     })
+    //
+    // })
+    //     .await
+    //     .map(|classrooms| HttpResponse::Ok().json(classrooms))
+    //     .map_err(|_| HttpResponse::InternalServerError())?;
+    // Ok(res)
+    Ok(HttpResponse::Ok().content_type("text/html").body("Not Yet Implemented"))
+}
+
 /// Askama template data for Teacher page
 #[derive(Template)]
 #[template(path = "teacher.html")]
@@ -278,10 +298,14 @@ async fn main() -> std::io::Result<()> {
     };
     let app_state_extractor = web::Data::new(app_state);
 
+    // r2d2
+    let db_conn_manager = SqliteConnectionManager::file("learn-rust.db");
+    let db_conn_pool = r2d2::Pool::new(db_conn_manager).unwrap();
+
     let server_config = build_ssl_server_config();
 
     let server = HttpServer::new(move || {
-        // "move closure" needed to transfer ownership of app_state value from main thread
+        // "move closure" needed to transfer ownership of values from main thread
         App::new()
             // create cookie based session middleware, limited to 4000 bytes of data
             .wrap(CookieSession::signed(&[0; 32]).secure(false))
@@ -289,6 +313,7 @@ async fn main() -> std::io::Result<()> {
             .wrap(Logger::default())
             // register app_state
             .app_data(app_state_extractor.clone())
+            .data(db_conn_pool.clone())
             // register request handlers on a path with a method
             .route("/", web::get().to(get_homepage))
             // simpler registration when using macros

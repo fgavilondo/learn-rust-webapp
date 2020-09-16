@@ -21,7 +21,8 @@ Server-side rendered HTML, not an SPA.
 * Serving static files
 * SSL/TLS
 * Unit/integration testing
-
+* Relational DB access
+ 
 # Topics not covered
 
 * Authentication/Authorization (too many ways to go about it).
@@ -244,19 +245,29 @@ Use the provided 'derive' macro to make your structs deserializable:
 
 ... and use the web::Json extractor to deserialize them from the HTTP request.
 
-# ORM
+# Relational DB access
 
-Options:
+The canonical way to access relational databases in Rust is to use the r2d2 crate which acts as a connection pool.
+
+A connection pool maintains a set of open connections to a database, handing them out for repeated use.
+
+r2d2 is agnostic to the connection type it is managing. You configure it with an implementation of the ManageConnection trait.
+
+SqliteConnectionManager provides the database-specific logic to create and check the health of connections.
+Under the hood, SqliteConnectionManager uses the rusqlite crate for using SQLite from Rust.
+
+## Why not ORM?
+
+Only two options:
 
 * Diesel: https://crates.io/crates/diesel
 * Rustorm: https://crates.io/crates/rustorm
 
-Diesel seems to be the more popular choice (1.2M downloads vs 20000). Also, last GitHub commit for Rustorm was 6 months ago.
+Diesel seems to be the more popular choice: 1.2M downloads vs 20000. Last GitHub commit for Rustorm was 6 months ago.
 
 However, many complains about Diesel being hard to use and confusing documentation.
 
-"Light-weight" alternative: SQLx (https://crates.io/crates/sqlx) -s async, type-safe SQL queries.
-
+A more "light-weight" alternative: SQLx (https://crates.io/crates/sqlx) - async, type-safe SQL queries.
 
 # Conclusions
 

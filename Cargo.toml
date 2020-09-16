@@ -16,6 +16,9 @@ env_logger = "0.7.1"
 chrono = "0.4.15"
 rustls = "0.18.1"
 askama = "0.10.3"
+r2d2 = "0.8.9"
+r2d2_sqlite = "0.17"
+rusqlite = "0.24"
 
 [build-dependencies]
 askama = "0.10.3"
