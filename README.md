@@ -24,12 +24,14 @@ Server-side rendered HTML, not an SPA.
 
 # Topics not covered
 
-* ORM
 * Authentication/Authorization(too many ways to go about it)
-* Custom middlewares
-* Custom Error responses
 * Modular app configuration
-* Using application guards to filter requests, e.g. based on HTTP headers
+* Using 'application guards' to filter requests, e.g. based on HTTP headers
+* Custom middlewares
+* Custom error responses (convert app errors to HttpResponse errors) 
+* File upload
+* GraphQL (use 'juniper' crate)
+* ORM (Diesel)
 
 # Web framework
 
