@@ -263,15 +263,15 @@ Only two options:
 * Diesel: https://crates.io/crates/diesel
 * Rustorm: https://crates.io/crates/rustorm
 
-Diesel seems to be the more popular choice: 1.2M downloads vs 20000. Last GitHub commit for Rustorm was 6 months ago.
+Diesel is by far the more popular choice: 1.2M downloads vs 20000. Also, last GitHub commit for Rustorm was 6 months ago.
 
-However, many complains about Diesel being hard to use and confusing documentation.
+However, Diesel is a complex beast, many people complain that it is hard to use and its documentation confusing.
 
-A more "light-weight" alternative: SQLx (https://crates.io/crates/sqlx) - async, type-safe SQL queries.
+Also possible: SQLx (https://crates.io/crates/sqlx) - async, type-safe SQL queries.
 
-# Conclusions
+# Learnings/Conclusions
 
-* actix-web is good enough for simple web sites.
+* actix-web is good enough for simple web sites/REST APIs.
 * Many libs/crates are still version 0.x - immature APIs, possible bugs. Expect breaking changes between versions.
 * Quality of documentation for some crates is patchy.
 * Not an "opinionated" framework. There are many ways to do the same thing, including how to organise your codebase.
