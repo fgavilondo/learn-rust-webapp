@@ -24,7 +24,7 @@ Server-side rendered HTML, not an SPA.
 
 # Topics not covered
 
-* Authentication/Authorization(too many ways to go about it)
+* Authentication/Authorization (too many ways to go about it). Cookie-based example: https://github.com/actix/examples/tree/master/simple-auth-server
 * Modular app configuration
 * Using 'application guards' to filter requests, e.g. based on HTTP headers
 * Custom middlewares
