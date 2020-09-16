@@ -26,7 +26,8 @@ Server-side rendered HTML, not an SPA.
 
 * ORM
 * Authentication/Authorization(too many ways to go about it)
-* Implementing custom middlewares
+* Custom middlewares
+* Custom Error responses
 * Modular app configuration
 * Using application guards to filter requests, e.g. based on HTTP headers
 
@@ -240,6 +241,20 @@ Use the provided 'derive' macro to make your structs deserializable:
     }
 
 ... and use the web::Json extractor to deserialize them from the HTTP request.
+
+# ORM
+
+Options:
+
+* Diesel: https://crates.io/crates/diesel
+* Rustorm: https://crates.io/crates/rustorm
+
+Diesel seems to be the more popular choice (1.2M downloads vs 20000). Also, last GitHub commit for Rustorm was 6 months ago.
+
+However, many complains about Diesel being hard to use and confusing documentation.
+
+"Light-weight" alternative: SQLx (https://crates.io/crates/sqlx) -s async, type-safe SQL queries.
+
 
 # Conclusions
 
