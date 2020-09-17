@@ -6,13 +6,14 @@ use std::sync::{Mutex, MutexGuard};
 
 use actix_files::NamedFile;
 use actix_session::{CookieSession, Session};
-use actix_web::{App, get, HttpRequest, HttpResponse, HttpServer, post, put, Responder, Result, web};
+use actix_web::{App, get, HttpRequest, HttpResponse, HttpServer, post, put, Result, web};
 use actix_web::middleware::Logger;
 use askama::Template;
 use chrono::offset::Utc;
 use env_logger;
 use r2d2::Pool;
 use r2d2_sqlite::SqliteConnectionManager;
+use rusqlite::params;
 use rustls::{NoClientAuth, ServerConfig};
 use rustls::internal::pemfile::{certs, rsa_private_keys};
 use serde::{Deserialize, Serialize};
@@ -196,31 +197,34 @@ async fn get_student_page(web::Path((student_id, )): web::Path<(u32, )>,
 // JSON serialization using serde
 #[derive(Serialize)]
 struct Classroom {
-    name: &'static str,
+    name: String,
     capacity: u32,
 }
 
-#[get("/classrooms")]
-async fn get_classrooms_json() -> impl Responder {
-    web::Json([Classroom { name: "5VR", capacity: 25 }, Classroom { name: "2GK", capacity: 28 }])
+fn db_read_classrooms(db: web::Data<Pool<SqliteConnectionManager>>) -> Vec<Classroom> {
+    let conn = db.get().unwrap();
+
+    let mut stmt = conn.prepare("SELECT name, capacity FROM classroom").expect("Database connection error");
+    let query_result = stmt.query_map(params![], |row| {
+        Ok(Classroom {
+            name: row.get(0)?,
+            capacity: row.get(1)?,
+        })
+    });
+    let rows = query_result.unwrap();
+
+    let mut classrooms: Vec<Classroom> = Vec::new();
+    for classroom in rows {
+        classrooms.push(classroom.unwrap());
+    }
+
+    classrooms
 }
 
-#[get("/classroomsdb")]
-async fn get_classrooms_from_db(db: web::Data<Pool<SqliteConnectionManager>>) -> Result<HttpResponse> {
-    // execute sync code in thread pool
-    // let res = web::block(move || {
-    //     let conn = db.get().unwrap();
-    //
-    //     conn.query_row("SELECT name, capacity FROM classroom WHERE status=$1", &["active"], |row| {
-    //         row.get::<_, String, String>(0)
-    //     })
-    //
-    // })
-    //     .await
-    //     .map(|classrooms| HttpResponse::Ok().json(classrooms))
-    //     .map_err(|_| HttpResponse::InternalServerError())?;
-    // Ok(res)
-    Ok(HttpResponse::Ok().content_type("text/html").body("Not Yet Implemented"))
+#[get("/classrooms")]
+async fn get_classrooms_json(db: web::Data<Pool<SqliteConnectionManager>>) -> Result<HttpResponse> {
+    let classrooms: Vec<Classroom> = db_read_classrooms(db);
+    Ok(HttpResponse::Ok().json(classrooms))
 }
 
 /// Askama template data for Teacher page
@@ -281,6 +285,40 @@ fn build_ssl_server_config() -> ServerConfig {
     server_config
 }
 
+fn db_create_schema(db: &Pool<SqliteConnectionManager>) {
+    let conn = db.get().unwrap();
+    conn.execute(
+        "CREATE TABLE classroom (
+                  id              INTEGER PRIMARY KEY,
+                  name            TEXT NOT NULL,
+                  capacity        INTEGER
+                  )",
+        params![],
+    ).expect("Database connection error");
+}
+
+fn db_insert_classroom(db: &Pool<SqliteConnectionManager>, name: &str, capacity: u32) {
+    let conn = db.get().unwrap();
+    conn.execute(
+        "INSERT INTO classroom (name, capacity) VALUES (?1, ?2)",
+        params![name, capacity],
+    ).expect("Database connection error");
+}
+
+fn init_database() -> Pool<SqliteConnectionManager> {
+    // let db_conn_manager: SqliteConnectionManager = SqliteConnectionManager::file("school.db");
+    // use in-memory DB for simplicity
+    let db_conn_manager: SqliteConnectionManager = SqliteConnectionManager::memory();
+    let db_conn_pool: Pool<SqliteConnectionManager> = r2d2::Pool::new(db_conn_manager).unwrap();
+
+    // since we're using an in-memory DB, we have to seed it with some values
+    db_create_schema(&db_conn_pool);
+    db_insert_classroom(&db_conn_pool, "5VR", 35);
+    db_insert_classroom(&db_conn_pool, "2GK", 38);
+
+    db_conn_pool
+}
+
 // This macro marks the associated async function to be executed within the actix runtime.
 // We have to add actix-rt to our Cargo dependencies.
 #[actix_rt::main]
@@ -296,12 +334,9 @@ async fn main() -> std::io::Result<()> {
                                   Student::new(2, "David", "Johnston", "Java"),
                                   Student::new(3, "Mark", "Wong", "Rust")]),
     };
+
     let app_state_extractor = web::Data::new(app_state);
-
-    // r2d2
-    let db_conn_manager = SqliteConnectionManager::file("learn-rust.db");
-    let db_conn_pool = r2d2::Pool::new(db_conn_manager).unwrap();
-
+    let db_conn_pool: Pool<SqliteConnectionManager> = init_database();
     let server_config = build_ssl_server_config();
 
     let server = HttpServer::new(move || {

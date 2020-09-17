@@ -248,9 +248,9 @@ Use the provided 'derive' macro to make your structs deserializable:
 # Relational DB access
 
 This demo app uses SQLite as its relational database since it is the one of the simplest RDMS you could possibly use
-for dev/testing (and even some production use cases). Download and install from: https://www.sqlite.org/download.html
-
-If you are on a Mac, chances are you already have sqlite3 in your /usr/bin directory. It seems to be included with macOS out-of-the-box.
+for dev/testing (and even for some production use cases). Download SQLite from https://www.sqlite.org/download.html
+and install it. The sqlite executable needs to be available via system path. 
+(If you are on a Mac, chances are you already have sqlite3 in your /usr/bin directory. It seems to be included with macOS out-of-the-box.)
 
 The canonical way to access relational databases in Rust is to use the r2d2 crate which acts as a connection pool to your database.
 A connection pool maintains a set of open connections to a database, handing them out for repeated use.
