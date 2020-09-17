@@ -247,14 +247,24 @@ Use the provided 'derive' macro to make your structs deserializable:
 
 # Relational DB access
 
-The canonical way to access relational databases in Rust is to use the r2d2 crate which acts as a connection pool.
+This demo app uses SQLite as its relational database since it is the one of the simplest RDMS you could possibly use
+for dev/testing (and even some production use cases). Download and install from: https://www.sqlite.org/download.html
 
+If you are on a Mac, chances are you already have sqlite3 in your /usr/bin directory. It seems to be included with macOS out-of-the-box.
+
+The canonical way to access relational databases in Rust is to use the r2d2 crate which acts as a connection pool to your database.
 A connection pool maintains a set of open connections to a database, handing them out for repeated use.
 
-r2d2 is agnostic to the connection type it is managing. You configure it with an implementation of the ManageConnection trait.
+r2d2 is agnostic to the connection type it is managing. You configure it with an implementation of the r2d2::ManageConnection trait.
+In this case we use a r2d2_sqlite::SqliteConnectionManager to provide the SQLite-specific logic to create and check the
+health of connections to the database. We use an in-memory Db for simplicity:
 
-SqliteConnectionManager provides the database-specific logic to create and check the health of connections.
-Under the hood, SqliteConnectionManager uses the rusqlite crate for using SQLite from Rust.
+    let db_conn_manager: SqliteConnectionManager = SqliteConnectionManager::memory();
+    let db_conn_pool: Pool<SqliteConnectionManager> = r2d2::Pool::new(db_conn_manager).unwrap();
+    
+Under the hood, SqliteConnectionManager uses the rusqlite crate for accessing SQLite from Rust.
+
+See: https://docs.rs/rusqlite/0.24.0/rusqlite/
 
 ## Why not ORM?
 
